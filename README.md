@@ -1168,8 +1168,8 @@ const nuron2 = new Nuron({
 
 ## Nuron commands
 
-1. `nuron stop`: shut down nuron
-2. `nuron ls`: list all folders in the nuron file system
-3. `nuron serve [folder_name]`: start a local web server from the folder
-4. `nuron tunnel [port]`: connect the local web server to a temporary public URL (to allow others to test privately)
+1. `npx nuron stop`: shut down nuron
+2. `npx nuron ls`: list all folders in the nuron file system
+3. `npx nuron serve [folder_name]`: start a local web server from the folder
+4. `npx nuron tunnel [port]`: connect the local web server to a temporary public URL (to allow others to test privately)
 
