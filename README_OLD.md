@@ -162,100 +162,71 @@ Once the deployment transaction goes through, you will see the following screen 
 
 Nuron is a piece of software that lets you automatically and programmatically create tokens on any machine through an RPC interface.
 
-### 1.1. Install Docker
+### 1.1. Install Nuron
 
-#### Desktop (Windows, mac, etc)
-
-Download Docker Desktop here: https://www.docker.com/products/docker-desktop/
-
-![dockerdesktopdownload.png](dockerdesktopdownload.png)
-
-#### Server (linux)
-
-You need to install both [Docker](https://docs.docker.com/engine/install/) and [Docker Compose](https://docs.docker.com/compose/)
-
-##### A. Install Docker
-
-First, install Docker by running the following commands:
+Install Nuron globally with `npm`.
 
 ```
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
+npm install -g nuron
 ```
 
-> You can learn more about this here: https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script
+#### Troubleshooting
 
-##### B. Install Docker Compose
-
-Next, install Docker Compose by running the following commands:
+If above command fails with a permission error, try:
 
 ```
-sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
+npm install -g nuron --unsafe-perm
 ```
 
-After the installation, check to make sure it's correctly installed:
+If it still fails, **try updating node.js to the LATEST STABLE version**.
+
+You can learn more [here](https://phoenixnap.com/kb/update-node-js-version), or you can simply install and use the `n` package to upgrade to the stable version, like this:
 
 ```
-docker-compose --version
+npm install -g n
+
+sudo n stable
 ```
-
-It should print the current version.
-
-> You can learn more about docker compose installation here: https://docs.docker.com/compose/install/
-
 
 
 ### 1.2. Run Nuron
 
-To start Nuron, open the terminal and run the following command:
+Start nuron with the following command:
 
 ```
-npx nuron start
+nuron start
 ```
 
-This will automatically pull the docker image and start a container.
-
-If you're running on Windows or Mac, check your Docker Desktop, and you will see a **Nuron** container running:
-
-![dockerdesktop.png](dockerdesktop.png)
-
-
-If you're running on Linux, you can check that the container is running with the command:
+Or if you want to run it in the background, run the following command:
 
 ```
-docker ps
+nohup nuron start &
 ```
 
-This will display the nuron container running:
+#### Troubleshooting
 
-![dockerps.png](dockerps.png)
+If you run into any trouble when launching nuron, try upgrading your node.js to the latest STABLE release.
 
+You can learn more [here](https://phoenixnap.com/kb/update-node-js-version), or you can simply install and use the `n` package to upgrade to the stable version, like this:
+
+```
+npm install -g n
+
+sudo n stable
+```
 
 ### 1.3. Configure Nuron
 
 You need to configure Nuron first. Run the following command to connect to and configure Nuron:
 
 ```
-npx nuron config
+nuron config
 ```
 
 Make sure to configure both of the following:
 
 1. **Import a wallet:** You MUST use the same address that deployed this contract. Export the seed phrase from the wallet you used to deploy this collection, and import it into Nuron./li>
 2. **Configure IPFS:** Set the [nft.storage](https://nft.storage) IPFS config
-
-#### A. import a wallet
-
-First, import your wallet seed phrase (or generate a new wallet):
-
-![importwallet.gif](importwallet.gif)
-
-#### B. configure IPFS
-
-Next, sign up to [nft.storage](https://nft.storage), get an API KEY, and store it into Nuron:
-
-![ipfskey.gif](ipfskey.gif)
 
 ---
 
@@ -1033,105 +1004,6 @@ The entire minting app will look something like this:
 
 
 
-## 4. On-demand NFTs in Production
-
-When you implement an on-demand NFT server, your server is basically acting as a token printer:
-
-1. Users ask the token printer to print some tokens
-2. Users take the printed token and mint it to the blockchain
-3. Now the tokens are on-chain and your token printer's job is done
-
-You as the token printer's job is ONLY to print tokens so they can be minted on chain. From that point on, the tokens follow the rule of the host blockchain and you are no longer needed (you are not the central point of failure).
-
-This means that the only part where things may fail is your token printing step. If the token printer server shuts down or crashes, the users won't be able to ask your printer to give them tokens to mint.
-
-To avoid this situation, you should program your on-demand token server so that it automatically restarts when something goes wrong and it crashes, so it always stays up.
-
-There are two parts to this:
-
-1. Nuron
-2. Token Printer App
-
-### 4.1. Nuron
-
-The Nuron server itself is built resilient when packaged in the Docker container. Whenever Nuron crashes, it is programmed to automatically restart. 
-
-This means **you don't have to worry about Nuron's resiliency. It just works.**
-
-### 4.2. Token Printer App
-
-While Nuron itself can automatically restart, we still have one issue.
-
-Whenever Nuron restarts, it clears out all the connections, which means all the clients previously connected to Nuron will lose connection and they will need to re-connect.
-
-To handle this, you can use the [nuron.js wallet.connect() API](https://nuronjs.cell.computer/#/?id=connect) to connect at the beginning of your token printer server initialization.
-
-#### Initial Login
-
-Let's quickly revisit the on-demand NFT express app from the previous section. Whenever we start this app, we can programmatically connect to Nuron using [nuron.wallet.connect()](https://nuronjs.cell.computer/#/?id=connect).
-
-```javascript
-const DOMAIN = <PASTE YOUR DOMAIN JSON OBJECT HERE>
-const { createAvatar } = require('@dicebear/avatars');
-const style = require('@dicebear/open-peeps');
-const Nuron = require('nuronjs')
-const express = require('express')
-const nuron = new Nuron({
-  key: "m'/44'/60'/0'/0/0",
-  workspace: "open-peeps",
-  domain: DOMAIN
-});
-
-////////////////////////////////////////////////
-//
-// CONNECT TO NURON USING THE
-// WALLET USERNAME AND THE ENCRYPTION PASSWORD
-// SET THROUGH "npx nuron config"!
-//
-////////////////////////////////////////////////
-nuron.wallet.connect(WALLET_PASSWORD, WALLET_USERNAME)
-
-...
-
-```
-
-By connecting at the beginning of your app's launch, you can esure that this app will connect to your desired Nuron account.
-
-#### Reconnect on exception
-
-Now that we know how to connect at the beginning, how do we make sure it's always connected? For example if Nuron crashes and restarts, or for some reason the connection is destroyed?
-
-We can think about two different approaches:
-
-1. **Handle exception:** handle exception in the app 
-2. **Crash and restart:** just let the app crash, but run the app itself in a Docker container or in a process manager like [PM2](https://pm2.keymetrics.io/)
-
-##### A. Handle exception in the app
-
-For example, you
-
-```javascript
-const createToken = async (svg) => {
-  try {
-    // Try to write to nuron
-    let svg_cid = await nuron.fs.write(Buffer.from(svg))
-    . . .
-  } catch (e) {
-    // if it fails, try connecting to nuron and call createToken() again
-    await nuron.wallet.connect(PASSWORD, USERNAME)
-    await createToken(svg)
-  }
-}
-```
-
-##### B. Let the app crash and auto-restart on exception
-
-Another approach is simply let the exception crash the app and let the app itself automatically restart. That way, the initial connection logic will kick in when the app restarts, and your app will be always connected.
-
-To take this approach, you don't need to change the existing code. The code will simply crash when it tries to write to Nuron when the session has been disconnected. You just need to run the app itself in a way that can auto-restart. For example:
-
-1. **Process manager:** run your node.js app in a process management engine like [PM2](https://pm2.keymetrics.io/)
-2. **Container:** or containerize your app itself in a Docker container and run it with a `restart: always` policy
 
 
 ---
