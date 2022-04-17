@@ -434,7 +434,7 @@ Any signed token can be submitted to the blockchain to be minted. To mint tokens
 So where are all the files stored? Run the following command to find out:
 
 ```
-nuron home
+npx nuron home
 ```
 
 Open the folder with Finder (mac) or Explorer (windows) or ls (linux) and you will see all the files you've just created.
@@ -499,14 +499,14 @@ Before publishing these sites, let's check to make sure the pages load correctly
 Let's first check what folders are contained within the Nuron file system:
 
 ```
-nuron ls
+npx nuron ls
 ```
 
 This will list all the folders. We want to start a local HTTP server for one of the folders, in this case _test_:
 
 
 ```
-nuron serve _test_
+npx nuron serve _test_
 ```
 
 This command internally uses HTTP-SERVER module to serve local files from a local web server. The terminal will look something like this:
@@ -553,7 +553,7 @@ While testing, you may often want to have a temporary REAL URL that anyone else 
 To solve this problem, you can set up a temporary public URL that connects to the instant HTTP server you created with `nuron serve [folder]`. Just get the port number from the `nuron serve` (let's assume the port is 8080/web in this case) and run the following command, which creates a public URL "tunnel" that connects to the local IP:
 
 ```
-nuron tunnel 8080
+npx nuron tunnel 8080
 ```
 
 It will start a tunnel and print the public URL you can use, for example:
