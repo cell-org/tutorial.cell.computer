@@ -158,36 +158,45 @@ Once the deployment transaction goes through, you will see the following screen 
 
 ---
 
-## 1. Setup Nuron
+## 1. Download Nuron
 
 Nuron is a piece of software that lets you automatically and programmatically create tokens on any machine through an RPC interface.
 
-### 1.1. Install Docker
+### 1.1. Mac
 
-#### Desktop (Windows, mac, etc)
+Download on Mac:
 
-Download Docker Desktop here: https://www.docker.com/products/docker-desktop/
+<a class='btn' href="https://github.com/cell-org/nutron/releases/download/v0.0.1/nuron-0.0.1.dmg"><i class="fa-brands fa-apple"></i> Mac Installer</a>
 
-![dockerdesktopdownload.png](dockerdesktopdownload.png)
+---
 
-#### Server (linux)
+### 1.2. Windows
 
-You need to install both [Docker](https://docs.docker.com/engine/install/) and [Docker Compose](https://docs.docker.com/compose/)
+Download on Windows:
 
-##### A. Install Docker
+<a class='btn' href="https://github.com/cell-org/nutron/releases/download/v0.0.1/nuron.Setup.0.0.1.exe"><i class="fa-brands fa-windows"></i> Windows Installer</a>
 
-First, install Docker by running the following commands:
+---
+
+### 1.3. Linux
+
+On Linux, we recommend using Docker to run Nuron. You need to install both [Docker](https://docs.docker.com/engine/install/) and [Docker Compose](https://docs.docker.com/compose/)
+
+> You can also use the docker approach on Mac and Windows but for desktop settings it's much easier to just download the desktop apps.
+
+#### A. Install Docker
+
+First, install Docker by running the following commands ([Learn more](https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script))
 
 ```
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 ```
 
-> You can learn more about this here: https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script
 
-##### B. Install Docker Compose
+#### B. Install Docker Compose
 
-Next, install Docker Compose by running the following commands:
+Next, install Docker Compose by running the following commands ([Learn more](https://docs.docker.com/compose/install/)):
 
 ```
 sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
@@ -202,39 +211,78 @@ docker-compose --version
 
 It should print the current version.
 
-> You can learn more about docker compose installation here: https://docs.docker.com/compose/install/
 
+#### C. Install and Run Nuron
 
-
-### 1.2. Run Nuron
-
-To start Nuron, open the terminal and run the following command:
+To download and start Nuron, open the terminal and run the following command:
 
 ```
 npx nuron start
 ```
 
-This will automatically pull the docker image and start a container.
-
-If you're running on Windows or Mac, check your Docker Desktop, and you will see a **Nuron** container running:
-
-![dockerdesktop.png](dockerdesktop.png)
-
-
-If you're running on Linux, you can check that the container is running with the command:
+This will automatically pull the docker image and start a container. run the following command to check that the container is running:
 
 ```
 docker ps
 ```
 
-This will display the nuron container running:
+You are all set to go if you see a Nuron container running:
 
 ![dockerps.png](dockerps.png)
 
 
-### 1.3. Configure Nuron
+---
 
-You need to configure Nuron first. Run the following command to connect to and configure Nuron:
+## 2. Configure Nuron
+
+You need to configure Nuron first. 
+
+
+### 2.1. Mac & Windows
+
+Open the Nuron app and you will see the following login screen:
+
+![login.png](login.png)
+
+#### Importing a Wallet
+
+Currently there's no wallet connected to Nuron, so you will need to import a seed phrase.
+
+> You must import **the wallet you used to deploy the Cell contract**.
+
+Click "import a wallet" and you will see the following "import" page:
+
+![seedphrase.png](seedphrase.png)
+
+You can export your wallet seed phrase from other wallets (Example: [Metamask](https://metamask.zendesk.com/hc/en-us/articles/360015290032-How-to-reveal-your-Secret-Recovery-Phrase)) and paste it here.
+
+Make sure to enter an account name to remember the wallet as, and enter a pass phrase to encrypt the wallet. The encrypted wallet will be stored locally on your machine (For maximum security, **EVERYTHING IN NURON HAPPENS ON YOUR LOCAL MACHINE**).
+
+When you finish, Nuron will log you in and send you to the home screen:
+
+![home.png](home.png)
+
+#### Connecting to IPFS
+
+Nuron currently uses [nft.storage](https://nft.storage) to pin your NFT files for free.
+
+First go to nft.storage, get an account, and create an API key:
+
+![apikeys.png](apikeys.png)
+
+Now come back to Nuron, click the gear icon at the top right corner to go to the settings page:
+
+![settings.png](settings.png)
+
+And then click the **"workspace settings"** to go to the IPFS settings page. The API Key field will be empty. Copy and paste your NFT.STORAGE API Key here.
+
+![nftstorage.png](nftstorage.png)
+
+Now you're all ready to go!
+
+### 2.2. Linux
+
+On Linux, instead of using the web UI you can use the **Nuron CLI** to configure Nuron. Run the following command to connect to and configure Nuron:
 
 ```
 npx nuron config
@@ -245,13 +293,13 @@ Make sure to configure both of the following:
 1. **Import a wallet:** You MUST use the same address that deployed this contract. Export the seed phrase from the wallet you used to deploy this collection, and import it into Nuron./li>
 2. **Configure IPFS:** Set the [nft.storage](https://nft.storage) IPFS config
 
-#### A. import a wallet
+#### Import a wallet
 
 First, import your wallet seed phrase (or generate a new wallet):
 
 ![importwallet.gif](importwallet.gif)
 
-#### B. configure IPFS
+#### Configure IPFS
 
 Next, sign up to [nft.storage](https://nft.storage), get an API KEY, and store it into Nuron:
 
@@ -259,7 +307,7 @@ Next, sign up to [nft.storage](https://nft.storage), get an API KEY, and store i
 
 ---
 
-## 2. Create Tokens
+## 3. Create Tokens
 
 Once Nuron is running on your machine, we are now all ready to go.
 
@@ -275,7 +323,7 @@ Once Nuron is running on your machine, we are now all ready to go.
 >
 > **Example 3:** A collection creator may create a token privately and give it to someone privately WITHOUT publishing anywhere (through social media DMs, emails, text messages, etc). The receiver can then mint the token when they want.
 
-### 2.1. Preview
+### 3.1. Preview
 
 With Cell, all you need to know is JavaScript code. All the complicated details are taken care of by Nuron, including:
 
@@ -294,7 +342,7 @@ And the minting page for each token will look like this:
 ![mintpage.png](mintpage.png)
 
 
-### 2.2. Get the domain
+### 3.2. Get the domain
 
 Cell lets you print NFTs that can be potentially minted to ANY blockchain. Because of this flexibility, you need to define every token with a [domain](#domain) in order to describe where the tokens can be minted to.
 
@@ -310,7 +358,7 @@ Cell lets you print NFTs that can be potentially minted to ANY blockchain. Becau
 >
 > You must **use your own domain**.
 
-### 2.3. Create NFTs with JavaScript
+### 3.3. Create NFTs with JavaScript
 
 
 First install all dependencies:
@@ -348,8 +396,8 @@ const nuron = new Nuron({
   // 0.2. Remove all items from the token table
   await nuron.db.rm("token", {})
 
-  // Loop 100 times and make avatars
-  for(let i=0; i<100; i++) {
+  // Loop 42 times and make avatars
+  for(let i=0; i<42; i++) {
 
     ////////////////////////////////////////////////////
     //
@@ -396,6 +444,8 @@ const nuron = new Nuron({
 
     await nuron.fs.pin(svg_cid)
     await nuron.fs.pin(metadata_cid)
+
+    console.log(`[${i}] created token`, token)
   }
 
   ////////////////////////////////////////////////////////////////
@@ -404,6 +454,7 @@ const nuron = new Nuron({
   //
   ////////////////////////////////////////////////////////////////
   await nuron.web.build()
+  console.log("finished")
 })();
 ```
 
@@ -425,11 +476,11 @@ All that's left now is to to publish the tokens to the web so people can mint th
 
 ---
 
-## 3. Manage Tokens
+## 4. Manage Tokens
 
 Any signed token can be submitted to the blockchain to be minted. To mint tokens, we will use `c0.js`, a library that lets you interact with the Cell C0 contract on the blockchain.
 
-### 3.1. Where is everything stored?
+### 4.1. Where is everything stored?
 
 So where are all the files stored? Run the following command to find out:
 
@@ -485,7 +536,7 @@ Open the folder with Finder (mac) or Explorer (windows) or ls (linux) and you wi
 
 
 
-### 3.2. Testing locally
+### 4.2. Testing locally
 
 Remember we called the `nuron.web.build()` method in the creation code? This was what created the `web/index.html` and `web/token.html` files.
 
@@ -541,7 +592,7 @@ For the generative avatar example, it will look something like this:
 
 ![cellstore.png](cellstore.png)
 
-### 3.3. Testing publicly (advanced)
+### 4.3. Testing publicly (advanced)
 
 The problem (or benefit, depending on what you're trying to do) with the local test is that **ONLY YOU can access the website**, since you're loading the website from your own local machine. No one else can just type in http://127.0.0.1:8080/web from their machines and access your website.
 
@@ -565,7 +616,7 @@ Tunnel created:  https://fluffy-hound-53.loca.lt
 > Nuron makes use of the free [Localtunnel service](https://theboroer.github.io/localtunnel-www/) to handle tunneling.
 
 
-### 3.4. Going LIVE
+### 4.4. Going LIVE
 
 The Cell protocol has been carefully designed to remove centralization points. By default everything works as a static website, with no centralized database running somewhere in the cloud.
 
@@ -579,17 +630,17 @@ Everything is packaged in a way that should "just work". So how do we publish th
 
 ---
 
-## 4. Minting Tokens
+## 5. Minting Tokens
 
 Once you publish the tokens to a website, you're pretty much done. Anyone can now come and mint the tokens they have the permission to.
 
 > With Cell, each token can be individually programmed to have different minting conditions and traits from one another, such as royalty, expiration time, start time, price, hash puzzle, membership, etc.
 
-### 4.1. Mint from the storefront
+### 5.1. Mint from the storefront
 
 The included `index.html` and `token.html` are enough to let people mint directly from the website. Before moving forward, try minting from the site.
 
-### 4.2. c0.js
+### 5.2. c0.js
 
 You need to use [c0.js](https://c0js.cell.computer) to interact with the Cell C0 contract. The built-in web pages (`index.html` and `token.html`) both make use of the `c0.js` library to achieve this as well.
 
@@ -597,23 +648,23 @@ To learn more about how to use `c0.js`, check out the documentation: https://c0j
 
 ---
 
-## 5. Launch in production mode
+## 6. Launch in production mode
 
 So far we've used the testnet.
 
 But it is very simple to deploy the exact same contract to the mainnet. Here's what you need to do:
 
-### 5.1. Switch to mainnet
+### 6.1. Switch to mainnet
 
 Switch your browser wallet to mainnet and refresh the Cell computer dashboard at https://c0.cell.computer
 
-### 5.2. Check the mainnet connection
+### 6.2. Check the mainnet connection
 
 From the dashboard, check to make sure that the top right corner says "mainnet"
 
 ![mainnetcheck.png](mainnetcheck.png)
 
-### 5.3. Deploy to mainnet
+### 6.3. Deploy to mainnet
 
 ollow the same steps as we did with the [testnet deployment](#_04-deploy-a-contract). Only this time, it will simply deploy the contract to the mainnet, and once it's deployed you'll see that the contract domain has a chainId of "1":
 
