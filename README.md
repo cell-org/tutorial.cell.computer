@@ -534,9 +534,73 @@ Open the folder with Finder (mac) or Explorer (windows) or ls (linux) and you wi
   - `index.html`: the main page that displays all the tokens under the folder. It loads the `mixtape.db` database once when the page loads, and queries the in-browser DB to load tokens and render them.
   - `token.html`: the page used to render and mint the tokens.
 
+### 4.2. Mac & Windows
+
+On Mac and Windows, the Nuron app lets you navigate the Nuron file system, as well as acting as a built-in local web server that lets you easily preview the generated NFT website easily.
+
+#### Navigating Workspaces
+
+A "workspace" is just a local folder.
+
+- You can create as many workspaces as you want.
+- You can even create multiple workspaces for one contract.
+- The workspace name is 100% local and it's only for your organization purpose. You can name them whatever you want, the workspace name won't show up on chain.
+
+To navigate your workspaces:
+
+1. Login to Nuron. Select `workspaces`.
+2. You will see all your workspaces here (it will be empty if you didn't create one yet. you can programmatically create workspaces by following the tutorial example above)
+3. Select the workspace you want to navigate and click around.
+
+![workspacenav.gif](workspacenav.gif)
+
+#### Previewing Websites
+
+If you generated the website using the `nuron.web.build()` command, you will see a `web` folder in your workspace. (This is optional, so if you didn't generate a website, you won't see the web folder).
+
+Nuron has a built-in web server that lets you preview these sites easily.
+
+1. From Nuron, go to the `web` folder in your workspace. You will see `index.html` and `token.html`
+3. Open the `index.html` file. It will open your default browser and load the `index.html` file in it.
+
+![nuronpreview.gif](nuronpreview.gif)
+
+### 4.3. Linux
+
+#### Navigating Workspaces
+
+In Linux we are going to use the terminal to navigate and preview these files.
+
+Let's first check which workspaces the Nuron file system contains. From your terminal, enter the following command:
+
+```
+npx nuron ls
+```
+
+It will print all the workspaces created so far (it will be empty if there are none).
+
+Now let's actually go to the folder where all the files are stored. First find out the Nuron file system path:
+
+```
+npx nuron home
+```
+
+This will print the local folder where all the Nuron files are stored. Let's say the folder was `/Users/Alice/__nuron__/v0/home`, let's change directory:
+
+```
+cd /Users/Alice/__nuron__/v0/home
+```
+
+You will see there is a `config.json` file and a `workspace` folder. Go into the workspace folder:
+
+```
+cd workspace
+```
+
+This is where all the files are stored. Feel free to navigate them more to understand the folder structure.
 
 
-### 4.2. Testing locally
+#### Previewing Websites
 
 Remember we called the `nuron.web.build()` method in the creation code? This was what created the `web/index.html` and `web/token.html` files.
 
@@ -545,15 +609,8 @@ Remember we called the `nuron.web.build()` method in the creation code? This was
 
 > You don't have to use these auto-generated pages. They are just provided for convenience.
 
-Before publishing these sites, let's check to make sure the pages load correctly.
 
-Let's first check what folders are contained within the Nuron file system:
-
-```
-npx nuron ls
-```
-
-This will list all the folders. We want to start a local HTTP server for one of the folders, in this case _test_:
+This will list all the folders. We want to start a local HTTP server for one of the folders, in this case `_test_`:
 
 
 ```
@@ -592,7 +649,7 @@ For the generative avatar example, it will look something like this:
 
 ![cellstore.png](cellstore.png)
 
-### 4.3. Testing publicly (advanced)
+#### Testing Publicly (advanced)
 
 The problem (or benefit, depending on what you're trying to do) with the local test is that **ONLY YOU can access the website**, since you're loading the website from your own local machine. No one else can just type in http://127.0.0.1:8080/web from their machines and access your website.
 
@@ -615,32 +672,42 @@ Tunnel created:  https://fluffy-hound-53.loca.lt
 
 > Nuron makes use of the free [Localtunnel service](https://theboroer.github.io/localtunnel-www/) to handle tunneling.
 
+---
 
-### 4.4. Going LIVE
+## 5. Publishing the Minting Site
 
 The Cell protocol has been carefully designed to remove centralization points. By default everything works as a static website, with no centralized database running somewhere in the cloud.
 
 Everything is packaged in a way that should "just work". So how do we publish this thing and allow people to mint?
 
+### 5.1. Find the local workspace folder
+
+You can find the workspace folder by following the instructions in [this section](#navigating-workspaces-1).
+
+The `npx` commands work identically on all platforms including Mac, Windows, and Linux.
+
+
+### 5.2. Publish the folder to the web
+
 1. **Basic:** Just dump the entire collection folder onto your web hosting provider, and it should just work. For example if everything is stored under /root/_nuron/home/fs/open-peeps, you simply copy and paste that entire open-peeps folder into whichever web hosting provider you use, and it should work instantly.
 2. **GitHub Pages:** Every folder in the Nuron file system is a git repository, and was designed to work right out of the box with no additional configuration. You can publish your NFT collection to the web for free using GitHub pages. To use GitHub pages, you can:
-  1. download [GitHub Desktop](https://desktop.github.com/) and login with your GitHub account
-  2. Add your NFT collection folder (example: `/root/_nuron/home/fs/open-peeps`), commit, and publish to GitHub
-  3. Go to GitHub and [turn on GitHub pages](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site) for your repository
+    1. download [GitHub Desktop](https://desktop.github.com/) and login with your GitHub account
+    2. Add your NFT collection folder (example: `/root/_nuron/home/fs/open-peeps`), commit, and publish to GitHub
+    3. Go to GitHub and [turn on GitHub pages](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site) for your repository
 
 ---
 
-## 5. Minting Tokens
+## 6. Minting Tokens
 
 Once you publish the tokens to a website, you're pretty much done. Anyone can now come and mint the tokens they have the permission to.
 
 > With Cell, each token can be individually programmed to have different minting conditions and traits from one another, such as royalty, expiration time, start time, price, hash puzzle, membership, etc.
 
-### 5.1. Mint from the storefront
+### 6.1. Mint from the storefront
 
 The included `index.html` and `token.html` are enough to let people mint directly from the website. Before moving forward, try minting from the site.
 
-### 5.2. c0.js
+### 6.2. c0.js
 
 You need to use [c0.js](https://c0js.cell.computer) to interact with the Cell C0 contract. The built-in web pages (`index.html` and `token.html`) both make use of the `c0.js` library to achieve this as well.
 
@@ -648,23 +715,23 @@ To learn more about how to use `c0.js`, check out the documentation: https://c0j
 
 ---
 
-## 6. Launch in production mode
+## 7. Launch in production mode
 
 So far we've used the testnet.
 
 But it is very simple to deploy the exact same contract to the mainnet. Here's what you need to do:
 
-### 6.1. Switch to mainnet
+### 7.1. Switch to mainnet
 
 Switch your browser wallet to mainnet and refresh the Cell computer dashboard at https://c0.cell.computer
 
-### 6.2. Check the mainnet connection
+### 7.2. Check the mainnet connection
 
 From the dashboard, check to make sure that the top right corner says "mainnet"
 
 ![mainnetcheck.png](mainnetcheck.png)
 
-### 6.3. Deploy to mainnet
+### 7.3. Deploy to mainnet
 
 ollow the same steps as we did with the [testnet deployment](#_04-deploy-a-contract). Only this time, it will simply deploy the contract to the mainnet, and once it's deployed you'll see that the contract domain has a chainId of "1":
 
