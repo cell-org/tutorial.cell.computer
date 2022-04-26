@@ -4,6 +4,10 @@
 
 This document explains the Cell NFT Protocol and walks you through some tutorials to get you started in minutes.
 
+> This tutorial assumes you have ZERO experience with blockchains or NFTs.
+>
+> As long as you know JavaScript and HTML, you should be able to follow along, deploy and mint NFTs.
+
 1. **Concepts:** A quick overview of the Cell protocol stack
 2. **Quickstart:** Follow the tutorial to launch your own NFT collection with simple JavaScript
 3. **More Examples:** Even more tutorials with more examples
@@ -106,10 +110,43 @@ Here are the next steps:
 
 ---
 
+## 0. Preparatioin
 
-## 0. Deploy contract
+As the NFT creator, **the ONLY time you need to interact with the blockchain (and therefore need some coins) is WHEN YOU DEPLOY A CONTRACT.**
 
-### 0.1. Login to testnet account
+For deployment you need:
+
+1. A wallet
+2. Some coins
+
+Let's take care of these first.
+
+---
+
+### 0.1. Get Wallet
+
+You can use various wallets to deploy your contract, but let's use Metamask here since it's the most widely used:
+
+<a class='btn' href="https://metamask.io/" target="_blank"> Go to Metamask Download</a>
+
+---
+
+### 0.2. Get Testnet Coins
+
+
+In this tutorial we will launch the collection on Rinkeby, an Ethereum testnet. Let's get some testnet coins. 
+
+Go to the following faucets to get Rinkeby coins for free:
+
+1. https://faucets.chain.link/rinkeby
+2. https://rinkebyfaucet.com/
+
+---
+
+
+## 1. Deploy Contract
+
+### 1.1. Login to testnet account
 
 Change your wallet network to Rinkeby and go to https://c0.cell.computer
 
@@ -122,7 +159,9 @@ Make sure that:
 1. The top right corner says "Rinkeby"
 2. You see the list of addresses
 
-### 0.2. Cell computer home directory
+---
+
+### 1.2. Cell computer home directory
 
 Cell is a protocol but also a virtual computer. Just like most operating systems have a file system where all the files are stored under your home directory, Cell has a similar abstraction. The top most folder is the home directory.
 
@@ -130,7 +169,9 @@ The top row displays your **home** directory, which represents the currently log
 
 ![homedirectory.png](homedirectory.png)
 
-### 0.3. Contracts as subfolders
+---
+
+### 1.3. Contracts as subfolders
 
 So what do the rest of the addresses represent?
 
@@ -138,8 +179,9 @@ The subfolders right below the home directory are your contracts. When you deplo
 
 ![contracts.png](contracts.png)
 
+---
 
-### 0.4. Deploy a contract
+### 1.4. Deploy a contract
 
 Now let's deploy one of the folders (contracts). 
 
@@ -158,11 +200,13 @@ Once the deployment transaction goes through, you will see the following screen 
 
 ---
 
-## 1. Download Nuron
+## 2. Download Nuron
 
 Nuron is a piece of software that lets you automatically and programmatically create tokens on any machine through an RPC interface.
 
-### 1.1. Mac
+---
+
+### 2.1. Mac
 
 Download on Mac:
 
@@ -170,7 +214,7 @@ Download on Mac:
 
 ---
 
-### 1.2. Windows
+### 2.2. Windows
 
 Download on Windows:
 
@@ -178,7 +222,7 @@ Download on Windows:
 
 ---
 
-### 1.3. Linux
+### 2.3. Linux
 
 On Linux, we recommend using Docker to run Nuron. You need to install both [Docker](https://docs.docker.com/engine/install/) and [Docker Compose](https://docs.docker.com/compose/)
 
@@ -233,12 +277,13 @@ You are all set to go if you see a Nuron container running:
 
 ---
 
-## 2. Configure Nuron
+## 3. Configure Nuron
 
 You need to configure Nuron first. 
 
+---
 
-### 2.1. Mac & Windows
+### 3.1. Mac & Windows
 
 Open the Nuron app and you will see the following login screen:
 
@@ -280,7 +325,10 @@ And then click the **"workspace settings"** to go to the IPFS settings page. The
 
 Now you're all ready to go!
 
-### 2.2. Linux
+---
+
+
+### 3.2. Linux
 
 On Linux, instead of using the web UI you can use the **Nuron CLI** to configure Nuron. Run the following command to connect to and configure Nuron:
 
@@ -307,7 +355,7 @@ Next, sign up to [nft.storage](https://nft.storage), get an API KEY, and store i
 
 ---
 
-## 3. Create Tokens
+## 4. Create Tokens
 
 Once Nuron is running on your machine, we are now all ready to go.
 
@@ -323,7 +371,9 @@ Once Nuron is running on your machine, we are now all ready to go.
 >
 > **Example 3:** A collection creator may create a token privately and give it to someone privately WITHOUT publishing anywhere (through social media DMs, emails, text messages, etc). The receiver can then mint the token when they want.
 
-### 3.1. Preview
+---
+
+### 4.1. Preview
 
 With Cell, all you need to know is JavaScript code. All the complicated details are taken care of by Nuron, including:
 
@@ -341,8 +391,9 @@ And the minting page for each token will look like this:
 
 ![mintpage.png](mintpage.png)
 
+---
 
-### 3.2. Get the domain
+### 4.2. Get the domain
 
 Cell lets you print NFTs that can be potentially minted to ANY blockchain. Because of this flexibility, you need to define every token with a [domain](#domain) in order to describe where the tokens can be minted to.
 
@@ -358,7 +409,9 @@ Cell lets you print NFTs that can be potentially minted to ANY blockchain. Becau
 >
 > You must **use your own domain**.
 
-### 3.3. Create NFTs with JavaScript
+---
+
+### 4.3. Create NFTs with JavaScript
 
 
 First install all dependencies:
@@ -476,11 +529,13 @@ All that's left now is to to publish the tokens to the web so people can mint th
 
 ---
 
-## 4. Manage Tokens
+## 5. Manage Tokens
 
 Any signed token can be submitted to the blockchain to be minted. To mint tokens, we will use `c0.js`, a library that lets you interact with the Cell C0 contract on the blockchain.
 
-### 4.1. Where is everything stored?
+---
+
+### 5.1. Where is everything stored?
 
 So where are all the files stored? Run the following command to find out:
 
@@ -534,7 +589,9 @@ Open the folder with Finder (mac) or Explorer (windows) or ls (linux) and you wi
   - `index.html`: the main page that displays all the tokens under the folder. It loads the `mixtape.db` database once when the page loads, and queries the in-browser DB to load tokens and render them.
   - `token.html`: the page used to render and mint the tokens.
 
-### 4.2. Mac & Windows
+---
+
+### 5.2. Mac & Windows
 
 On Mac and Windows, the Nuron app lets you navigate the Nuron file system, as well as acting as a built-in local web server that lets you easily preview the generated NFT website easily.
 
@@ -565,7 +622,9 @@ Nuron has a built-in web server that lets you preview these sites easily.
 
 ![nuronpreview.gif](nuronpreview.gif)
 
-### 4.3. Linux
+---
+
+### 5.3. Linux
 
 #### Navigating Workspaces
 
@@ -674,20 +733,24 @@ Tunnel created:  https://fluffy-hound-53.loca.lt
 
 ---
 
-## 5. Publishing the Minting Site
+## 6. Publishing the Minting Site
 
 The Cell protocol has been carefully designed to remove centralization points. By default everything works as a static website, with no centralized database running somewhere in the cloud.
 
 Everything is packaged in a way that should "just work". So how do we publish this thing and allow people to mint?
 
-### 5.1. Find the local workspace folder
+---
+
+### 6.1. Find the local workspace folder
 
 You can find the workspace folder by following the instructions in [this section](#navigating-workspaces-1).
 
 The `npx` commands work identically on all platforms including Mac, Windows, and Linux.
 
+---
 
-### 5.2. Publish the folder to the web
+
+### 6.2. Publish the folder to the web
 
 1. **Basic:** Just dump the entire collection folder onto your web hosting provider, and it should just work. For example if everything is stored under /root/_nuron/home/fs/open-peeps, you simply copy and paste that entire open-peeps folder into whichever web hosting provider you use, and it should work instantly.
 2. **GitHub Pages:** Every folder in the Nuron file system is a git repository, and was designed to work right out of the box with no additional configuration. You can publish your NFT collection to the web for free using GitHub pages. To use GitHub pages, you can:
@@ -697,17 +760,21 @@ The `npx` commands work identically on all platforms including Mac, Windows, and
 
 ---
 
-## 6. Minting Tokens
+## 7. Minting Tokens
 
 Once you publish the tokens to a website, you're pretty much done. Anyone can now come and mint the tokens they have the permission to.
 
 > With Cell, each token can be individually programmed to have different minting conditions and traits from one another, such as royalty, expiration time, start time, price, hash puzzle, membership, etc.
 
-### 6.1. Mint from the storefront
+---
+
+### 7.1. Mint from the storefront
 
 The included `index.html` and `token.html` are enough to let people mint directly from the website. Before moving forward, try minting from the site.
 
-### 6.2. c0.js
+---
+
+### 7.2. c0.js
 
 You need to use [c0.js](https://c0js.cell.computer) to interact with the Cell C0 contract. The built-in web pages (`index.html` and `token.html`) both make use of the `c0.js` library to achieve this as well.
 
@@ -715,23 +782,29 @@ To learn more about how to use `c0.js`, check out the documentation: https://c0j
 
 ---
 
-## 7. Launch in production mode
+## 8. Launch in production mode
 
 So far we've used the testnet.
 
 But it is very simple to deploy the exact same contract to the mainnet. Here's what you need to do:
 
-### 7.1. Switch to mainnet
+---
+
+### 8.1. Switch to mainnet
 
 Switch your browser wallet to mainnet and refresh the Cell computer dashboard at https://c0.cell.computer
 
-### 7.2. Check the mainnet connection
+---
+
+### 8.2. Check the mainnet connection
 
 From the dashboard, check to make sure that the top right corner says "mainnet"
 
 ![mainnetcheck.png](mainnetcheck.png)
 
-### 7.3. Deploy to mainnet
+---
+
+### 8.3. Deploy to mainnet
 
 ollow the same steps as we did with the [testnet deployment](#_04-deploy-a-contract). Only this time, it will simply deploy the contract to the mainnet, and once it's deployed you'll see that the contract domain has a chainId of "1":
 
@@ -862,6 +935,7 @@ All that's left now is to to publish the tokens to the web so people can mint th
 
 > To learn how to actually publish the NFTs and the storefront website, skip to the next section "Browse and Manage Tokens"
 
+---
 
 ## 2. Turn your local folder into NFTs
 
@@ -988,6 +1062,8 @@ Above code takes care of everything you need for an NFT collection, including:
 All that's left now is to to publish the tokens to the web so people can mint them.
 
 > To learn how to actually publish the NFTs and the storefront website, read the next section "Manage Tokens"
+
+---
 
 ## 3. On-demand NFTs
 
@@ -1149,6 +1225,7 @@ The entire minting app will look something like this:
 ![ondemand.gif](ondemand.gif)
 
 
+---
 
 
 ## 4. On-demand NFTs in Production
@@ -1170,11 +1247,15 @@ There are two parts to this:
 1. Nuron
 2. Token Printer App
 
+---
+
 ### 4.1. Nuron
 
 The Nuron server itself is built resilient when packaged in the Docker container. Whenever Nuron crashes, it is programmed to automatically restart. 
 
 This means **you don't have to worry about Nuron's resiliency. It just works.**
+
+---
 
 ### 4.2. Token Printer App
 
@@ -1262,6 +1343,8 @@ To take this approach, you don't need to change the existing code. The code will
 - [nuron](https://nuron.cell.computer): Nuron RPC specification. You probably only need to read this if you're thinking of implementing your own Nuron client (using any programming language such as python, c, ruby, etc.)
 - [c0.js](https://c0js.cell.computer): JavaScript library for interacting with the Cell C0 contract. C0.js lets you interact with the blockchain (Nuron.js is only for creating and managing stuff offchain), so you'll need to learn `c0.js` if you want to build actual minting interfaces.
 
+---
+
 ## How do workspaces work?
 
 1. You can create as many workspaces as you want for whatever purpose you want.
@@ -1283,6 +1366,8 @@ const nuron2 = new Nuron({
   domain: {"address":"0x93f4f1e0dca38dd0d35305d57c601f829ee53b51","chainId":4,"name":"_test_"}
 });
 ```
+
+---
 
 ## Nuron commands
 
