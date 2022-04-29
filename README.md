@@ -191,6 +191,10 @@ However it is recommended that you **deploy them in order from the #0, to #1, to
 
 **Click the first row (contract #0)** to open the first folder (contract), and then enter the `name` and the `symbol` to deploy to the blockchain.
 
+- `name`: The NFT collection name (The name that represents the collection, which will be displayed on NFT marketplaces and other platforms)
+- `symbol`: The NFT collection symbol (not really used in case of NFTs so you can use anything)
+
+
 ![deploy.png](deploy.png)
 
 Once the deployment transaction goes through, you will see the following screen where it displays [the domain of the deployed contract](#domain). Now we're ready to start printing some NFTs!:
