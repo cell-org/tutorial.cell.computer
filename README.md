@@ -1195,7 +1195,7 @@ document.querySelector("form").addEventListener("submit", async (e) => {
   let token = response.token
   document.querySelector("#svg").innerHTML = svg
   // create a mint transaction with one token
-  let tx = await c0.token.mint([token])
+  let tx = await c0.token.send([token])
   let address = token.domain.verifyingContract
   let tokenId = token.body.id
   if (token.domain.chainId == 4) {
