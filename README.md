@@ -214,7 +214,7 @@ Nuron is a piece of software that lets you automatically and programmatically cr
 
 Download on Mac:
 
-<a class='btn' href="https://github.com/cell-org/nutron/releases/download/v0.0.1/nuron-0.0.1.dmg"><i class="fa-brands fa-apple"></i> Mac Installer</a>
+<a class='btn' href="https://github.com/cell-org/nutron/releases/download/v0.0.2/nuron-0.0.1.dmg"><i class="fa-brands fa-apple"></i> Mac Installer</a>
 
 ---
 
@@ -222,7 +222,7 @@ Download on Mac:
 
 Download on Windows:
 
-<a class='btn' href="https://github.com/cell-org/nutron/releases/download/v0.0.1/nuron.Setup.0.0.1.exe"><i class="fa-brands fa-windows"></i> Windows Installer</a>
+<a class='btn' href="https://github.com/cell-org/nutron/releases/download/v0.0.2/nuron.Setup.0.0.1.exe"><i class="fa-brands fa-windows"></i> Windows Installer</a>
 
 ---
 
