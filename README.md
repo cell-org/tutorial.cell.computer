@@ -214,7 +214,7 @@ Nuron is a piece of software that lets you automatically and programmatically cr
 
 Download on Mac:
 
-<a class='btn' href="https://github.com/cell-org/nutron/releases/download/v0.0.2/nuron-0.0.1.dmg"><i class="fa-brands fa-apple"></i> Mac Installer</a>
+<a class='btn' href="https://github.com/cell-org/nutron/releases/download/v0.0.3/nuron-0.0.3.dmg"><i class="fa-brands fa-apple"></i> Mac Installer</a>
 
 ---
 
@@ -222,7 +222,7 @@ Download on Mac:
 
 Download on Windows:
 
-<a class='btn' href="https://github.com/cell-org/nutron/releases/download/v0.0.2/nuron.Setup.0.0.1.exe"><i class="fa-brands fa-windows"></i> Windows Installer</a>
+<a class='btn' href="https://github.com/cell-org/nutron/releases/download/v0.0.3/nuron.Setup.0.0.3.exe"><i class="fa-brands fa-windows"></i> Windows Installer</a>
 
 ---
 
@@ -1359,13 +1359,11 @@ To take this approach, you don't need to change the existing code. The code will
 
 ## 5. Value lock
 
-You can implement mint authorization based on how much ETH is sent along with the request. You can also combine the value lock with various other locks to create complex NFT distribution strategies, for each token.
+You can restrict the NFT minting based on how much ETH is attached to the minting transaction.
 
 ### 5.1. NFTs with dynamic minting price
 
-Let's say you want to create a token whose minting price goes down over time.
-
-To facilitate this, you can create multiple Scripts for the same token:
+Let's say you want to create a token whose minting price goes down over time. To facilitate this, you can create multiple Scripts for the same token:
 
 ```javascript
 const today = Math.floor(Date.now() / 1000)
@@ -1420,24 +1418,24 @@ let friends = await nuron.token.create({
 })
 ```
 
-You can publish all of these scripts simultaneously, or selectively or privately. And the first account to mint according to each condition they belong to gets the NFT.
+You can publish all of these scripts simultaneously, or selectively or privately. And the first account to mint gets the NFT.
 
 ---
 
 ## 6. Hash puzzle lock
 
-You can create tokens that can only be minted when the minter knows a code you encoded the token with.
-
-For example, let's create a token that can only be minted when you supply the string "magic word".
+You can create tokens that can only be minted when the minter knows the code you locked the script with. 
 
 ### 6.1. Create a puzzle protected token
 
+For example, let's create a script that can only be minted into an NFT when you supply the string "magic word".
+
 ```javascript
-let token = await nuron.token.create({
+let script = await nuron.token.create({
   cid: metadata_cid,
   puzzle: "magic word"
 })
-console.log("CREATED SCRIPT = ", token)
+console.log("CREATED SCRIPT = ", script)
 ```
 
 This will create a token script that looks like this:
@@ -1472,34 +1470,33 @@ CREATED SCRIPT = {
 }
 ```
 
-Note that there is no `"magic word"` secret code included anywhere.
-
-Instead, the string has been hashed and stored as `puzzleHash: "0xf6eadd29a1811cb6d151eab8645fae31b713575726deacfb0c8ebe6677ecb33e"` 
+Note that there is no `"magic word"` secret code included anywhere (It would beat the whole purpose if the raw code were directly included in the script). Instead, the string has been hashed and stored as `puzzleHash: "0xf6eadd29a1811cb6d151eab8645fae31b713575726deacfb0c8ebe6677ecb33e"`. The minter will have to supply the solution `"magic word"` when submitting the script to the blockchain, which we will take a look below.
 
 ### 6.2. Solve the puzzle to mint
 
 Now let's put on our "minter role" hat and try to mint this token script by providing the `"magic word"` and submitting to the blockchain:
 
 ```javascript
-let tx = await c0.token.send([token], [{ puzzle: "magic word" }])
+let tx = await c0.token.send([script], [{ puzzle: "magic word" }])
 ```
 
 What this does is:
 
 1. The second argument `[{ puzzle: "magic word" }]` is passed into the c0.js library
-2. c0.js hashes the "magic word" string
-3. c0.js passes the hash of the "magic word" to the C0 contract when submitting the minting transaction
-4. The c0 contract compares the `token.body.puzzleHash` with the hash of the "magic word", and if they match, the token is minted.
+2. c0.js passes "magic word" to the C0 contract when submitting the minting transaction
+3. The c0 contract hashes the "magic word" and compares the `token.body.puzzleHash` with the hash of the "magic word", and if they match, the token is minted.
 
 > Note that we are using the c0.js library here, not nuron.js.
 >
 > The nuron.js library is used for automatically printing (creating) tokens, but not for minting (Nuron was deliberately designed to NEVER connect to the blockchain for security reasons).
 >
-> The c0.js library is the library you can use to interact with the c0 contract on the blockchain. So in this case when you're minting you need to use the c0.js
+> The c0.js library is used for interacting with the blockchain.
 
 ---
 
 ## 7. Address lock
+
+You can restrict minting based on minter or receiver addresses.
 
 ### 7.1. Minter address lock
 
@@ -1509,9 +1506,9 @@ Cell lets you program **who can mint a token** directly into a script. Each toke
 >
 > In most NFT contracts, "minting" means the minter will receive the minted token.
 >
-> However with Cell, the "minter" and the "receiver" roles are decoupled and programmable, which means you can program who can mint and who can receive, separately.
+> However with Cell, the "minter" and the "receiver" roles are decoupled and separately programmable, which means you can program who can mint and who can receive, separately.
 >
-> To learn about how you can restrict the "receiver" regardless of who mints the NFT, see the "Giftable NFTs" section.
+> To learn about how you can restrict the "receiver" regardless of who mints the NFT, see the "Reeiver address lock" section.
 
 #### Single minter authorization
 
@@ -1675,12 +1672,12 @@ In this section we will take a look at the second option primarily.
 
 Basically the main difference between the first and the second option is, while the first option is only for the collection owner (one person) to gift tokens to people, the second option lets ANYONE print tokens that will be sent to someone else when minted.
 
-A good use case is when you are building an on-demand NFT minting app that allows any random people to mint and send NFTs to someone else as a gift. One example is [PFP](https://pfp.factoria.app/):
+A good use case is when you are building an on-demand NFT minting app that allows any random person to mint and send NFTs to someone else as a gift. One example is [PFP](https://pfp.factoria.app/):
 
 ![pfp.png](pfp.png)
 
 1. **Gift:** You can mint a Twitter profile picture of your friend into an NFT and gift it to THEM all within the app:
-2. **Wishilist:** If you want to mint your Twitter profile picture into an NFT but don't have money, you can create a token with your address as `receiver`, and ask someone else to mint it for you. When they mint the token, the NFT will be sent to YOU.
+2. **Wishilist:** If you want to mint your Twitter profile picture into an NFT but don't have money, you can create a script with your address as `receiver` and send it to someone else and ask them to mint it for you. When they mint the token, the NFT will be sent to YOU.
 
 #### Giftable NFT
 
@@ -1775,7 +1772,7 @@ When this transaction goes through, Bob will have received the NFT he created, f
 
 We have just looked at how you can use the `receiver` opcode to specify a single allowed receiver. This is the most efficient way to specify a single receiver when you have a specific account in mind.
 
-However sometimes you may want to create a script that can be gifted to anyone on a list.
+However sometimes you may want to create a script to allow **anyone from a list** to receive the minted token.
 
 For this purpose you can use the `receivers` opcode to specify multiple accounts allowed to receive the gift. Here's a quick difference:
 
@@ -1786,7 +1783,7 @@ Here's how the `receivers` feature works:
 
 1. The NFT creator can create a script with a `receivers` array.
 2. A minter comes along and submits the script to the blockchain to mint it into an NFT. He can specify a receiver when calling the `c0.token.send([script], [{ receiver: receiver }])` (The second parameter).
-3. This `receiver` parameter must be included in the `receivers` array inside the script. Otherwise the mint will fail.
+3. This `receiver` parameter must be a member of the `receivers` array inside the script. Otherwise the mint will fail.
 4. When the mint succeeds, regardless of who sent the transaction, the minted NFT will be sent to the `receiver`.
 
 > You can combine this feature with other filtering mechanism such as the hash puzzle feature or the sender/senders feature.
@@ -1856,15 +1853,7 @@ If the minter--regardless of who it is--tries to mint to another account, the mi
 
 So how would it work in practice?
 
-Normally you only need the first parameter when calling the `send()` method, which submits Cell scripts to the blockchain:
-
-```javascript
-let tx = await c0.token.send([script])
-```
-
-Above command will **mint and send the token to the minter** who's submitting the script to the blockchain (assuming that the minting conditions specified in the script doesn't preclude the minter from minting)
-
-But you can additionally provide an "input" (the second parameter), which will redirect the minted token to the provided receiver, like this:
+When calling the `send()` method to actually mint a token, you need to provide an "input" (the second parameter), which will redirect the minted token to the provided receiver, like this:
 
 ```javascript
 let tx = await c0.token.send([script], [{ receiver: receiver_address }])
@@ -2455,7 +2444,7 @@ And the great part is, we can take advantage of this immutable property to imple
 1. To update an NFT X into Y, you can burn X and use its "proof of burn" to mint Y.
 2. To combine an NFT A and B to create C, you burn A and B, and mint C using the proofs of burn for A and B.
 
-This paradigm of creating mutability from immutability has many benefits, including traceability, safety, efficiency, etc. and can work across contracts and blockchains, making the Cell protocol a Universal NFT protocol that's portable anywhere regardless of blockchains.
+This paradigm of creating mutability from immutability has many benefits, including traceability, safety, efficiency, etc. and can work across contracts and blockchains, making the Cell protocol a Universal NFT protocol that's portable everywhere.
 
 > **Note**
 >
@@ -2485,6 +2474,19 @@ let script = await nuron.token.create({
 
 This script can only be minted when the sender (minter) has already burned the `wood_tokenid` NFT on the same contract.
 
+You would burn the `wood_tokenid` using something like:
+
+```javascript
+const tx = await c0.token.burn(contract_address, [wood_tokenid])
+```
+
+Then you can submit the mint script with:
+
+```javascript
+let tx = await c0.token.send([script])
+```
+
+
 #### Combine multiple to create another
 
 You don't have to burn just one NFT. Sometimes you may want to burn multiple items to mint a new item.
@@ -2505,6 +2507,20 @@ let script = await nuron.token.create({
 ```
 
 This script will mint a `ramen_cid` NFT only if the `noodle_tokenid` and the `broth_tokenid` were burned by the same account sending the transaction.
+
+To do this you would burn the `noodle_tokenid` and the `broth_tokenid`:
+
+```javascript
+const tx = await c0.token.burn(contract_address, [noodle_tokenid, broth_tokenid])
+```
+
+Then once both the noodle and the broth are burned, you can finally submit the script:
+
+```javascript
+let tx = await c0.token.send([script])
+```
+
+which will mint the `ramen_cid` NFT and send it to the minter.
 
 #### Cross-collection swap
 
@@ -2748,30 +2764,30 @@ However in this case Bob doesn't really care for the transferrable rights of the
 
 ```javascript
 {
-  body: {
-    signature: '0xfbe4b1075961248bc3f55f9ed785386479d34fda143b7bd520d4ddb5d70d5a40425e43ccc0cf8fe56a822e40c9a4508b1ab4d0cb0337d3617d6fadb5911b66951b',
-    cid: 'bafkreiecoogmguhvhvslpait4kknvmic5344dgvrs3l5migok5aj33pcei',
-    id: '59004829238478164602790103135035438545739640263958690554266001662053689713186',
-    encoding: 0,
-    sender: '0x0000000000000000000000000000000000000000',
-    receiver: '0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41',
-    value: '0',
-    start: '0',
-    end: '18446744073709551615',
-    royaltyReceiver: '0x0000000000000000000000000000000000000000',
-    royaltyAmount: '0',
-    burned: [],
-    owns: [],
-    balance: [],
-    senders: [],
-    merkleHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
-    puzzleHash: '0x0000000000000000000000000000000000000000000000000000000000000000'
+  "body": {
+    "signature": "0xf37dc71fd3fdebf5620da6ff03870159c847d3ff908af0ed4511c920c827b9932311c2ee99f133f05c0e8c7dbd74f4afe2858368388b52ca2459fcd4035def161c",
+    "cid": "bafkreiecoogmguhvhvslpait4kknvmic5344dgvrs3l5migok5aj33pcei",
+    "id": "59004829238478164602790103135035438545739640263958690554266001662053689713186",
+    "encoding": 0,
+    "sender": "0x0000000000000000000000000000000000000000",
+    "receiver": "0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41",
+    "value": "0",
+    "start": "0",
+    "end": "18446744073709551615",
+    "royaltyReceiver": "0x0000000000000000000000000000000000000000",
+    "royaltyAmount": "0",
+    "relations": [],
+    "senders": [],
+    "sendersHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "receivers": [],
+    "receiversHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "puzzleHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
   },
-  domain: {
-    name: '_test_',
-    chainId: 4,
-    verifyingContract: '0x93f4f1e0dca38dd0d35305d57c601f829ee53b51',
-    version: '1'
+  "domain": {
+    "name": "_test_",
+    "chainId": 4,
+    "verifyingContract": "0x93f4f1e0dca38dd0d35305d57c601f829ee53b51",
+    "version": "1"
   }
 }
 ```
