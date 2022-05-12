@@ -8,8 +8,12 @@
 body {
   font-family: "Helvetica Neue", helvetica, arial, "sans serif";
 }
+.content {
+  left: 400px !important;
+}
 .sidebar {
   color: rgba(0,0,0,0.8);
+  width: 400px !important;
 }
 .sidebar li {
   margin: 0;

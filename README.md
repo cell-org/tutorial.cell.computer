@@ -1255,15 +1255,34 @@ There are two parts to this:
 
 ### 4.1. Nuron
 
-The Nuron server itself is built resilient when packaged in the Docker container. Whenever Nuron crashes, it is programmed to automatically restart. 
+When using Nuron in a server setting, you should be using the Docker version of Nuron (instead of desktop Nuron).
 
-This means **you don't have to worry about Nuron's resiliency. It just works.**
+The Dockerized Nuron is managed with a docker-compose file that looks like this:
+
+```yaml
+version: "3.9"
+services:
+  nuron:
+    image: skogard/nuron
+    restart: always
+    volumes:
+      - type: bind
+        source: ${HOME}/__nuron__/v0
+        target: /usr/src/app/__nuron__/v0
+      - type: bind
+        source: ${HOME}/.keyport
+        target: /usr/src/app/__keyport__
+    ports:
+      - "42000:42000"
+```
+
+The `restart: always` means the container will always restart when it crashes. Therefore when using the Dockerized Nuron, **you don't have to worry about Nuron's resiliency. It just works.**
 
 ---
 
-### 4.2. Token Printer App
+### 4.2. Your ondemand NFT app
 
-While Nuron itself can automatically restart, we still have one issue.
+While Nuron itself can automatically restart, we still have one more issue.
 
 Whenever Nuron restarts, it clears out all the connections, which means all the clients previously connected to Nuron will lose connection and they will need to re-connect.
 
@@ -1336,6 +1355,1461 @@ To take this approach, you don't need to change the existing code. The code will
 1. **Process manager:** run your node.js app in a process management engine like [PM2](https://pm2.keymetrics.io/)
 2. **Container:** or containerize your app itself in a Docker container and run it with a `restart: always` policy
 
+---
+
+## 5. Value lock
+
+You can implement mint authorization based on how much ETH is sent along with the request. You can also combine the value lock with various other locks to create complex NFT distribution strategies, for each token.
+
+### 5.1. NFTs with dynamic minting price
+
+Let's say you want to create a token whose minting price goes down over time.
+
+To facilitate this, you can create multiple Scripts for the same token:
+
+```javascript
+const today = Math.floor(Date.now() / 1000)
+let today = await nuron.token.create({
+  cid: metadata_cid,
+  start: today,
+  end: today + 24 * 60 * 60 - 1,
+  value: 10 ** 18
+})
+let tomorrow = await nuron.token.create({
+  cid: metadata_cid,
+  start: today + 24 * 60 * 60,
+  value: 10 ** 17
+})
+```
+
+- The `today` script can be submitted to the blockchain starting right now, until 24 hours later (24 * 60 * 60 seconds), at the price of 10**18 wei (1 ETH)
+- The `tomorrow` script can be submitted to the blockchain starting 24 hours later, at the price of 10**17 wei (0.1ETH)
+
+---
+
+### 5.2. Market Segmentation
+
+You can create multiple minting conditions for the same tokenid.
+
+- Provide discounted rate for some.
+- Provide free mint for some.
+- Provide higher rate for others.
+- Combine with multiple other locks for sophisticated authorization
+
+For example, imagine creating 3 simultaneous scripts for the SAME token `metadata_cid`:
+
+```javascript
+let publicAudience = await nuron.token.create({
+  cid: metadata_cid,
+  value: 10 ** 18                                   // anyone can mint for 1ETH
+})
+let puzzleSolver = await nuron.token.create({
+  cid: metadata_cid,
+  puzzle: "3.1415926535897932384626433832795028841971693993751",
+  value: 0                                          // whoever solves this puzzle can mint for FREE
+})
+let friends = await nuron.token.create({
+  cid: metadata_cid,
+  senders: [
+    friend0_address,
+    friend1_address,
+    friend2_address,
+    friend3_address,
+  ],
+  value: 10 ** 16                                   // friends can mint for 0.01ETH
+})
+```
+
+You can publish all of these scripts simultaneously, or selectively or privately. And the first account to mint according to each condition they belong to gets the NFT.
+
+---
+
+## 6. Hash puzzle lock
+
+You can create tokens that can only be minted when the minter knows a code you encoded the token with.
+
+For example, let's create a token that can only be minted when you supply the string "magic word".
+
+### 6.1. Create a puzzle protected token
+
+```javascript
+let token = await nuron.token.create({
+  cid: metadata_cid,
+  puzzle: "magic word"
+})
+console.log("CREATED SCRIPT = ", token)
+```
+
+This will create a token script that looks like this:
+
+```javascript
+CREATED SCRIPT = {
+  body: {
+    signature: '0xaf7a5e68df3417bfcc0d4155d7f1a15d8d8a8656eb72147cffb7c6df72fff93f2f7ce6c157c50419337c63c510a1cf78398d15d24b1ca33df9db1f73d2f38c7a1b',
+    cid: 'bafkreiecoogmguhvhvslpait4kknvmic5344dgvrs3l5migok5aj33pcei',
+    id: '59004829238478164602790103135035438545739640263958690554266001662053689713186',
+    encoding: 0,
+    sender: '0x0000000000000000000000000000000000000000',
+    receiver: '0x0000000000000000000000000000000000000000',
+    value: '0',
+    start: '0',
+    end: '18446744073709551615',
+    royaltyReceiver: '0x0000000000000000000000000000000000000000',
+    royaltyAmount: '0',
+    relations: [],
+    senders: [],
+    sendersHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    receivers: [],
+    receiversHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    puzzleHash: '0xf6eadd29a1811cb6d151eab8645fae31b713575726deacfb0c8ebe6677ecb33e'
+  },
+  domain: {
+    name: '_test_',
+    chainId: 4,
+    verifyingContract: '0x93f4f1e0dca38dd0d35305d57c601f829ee53b51',
+    version: '1'
+  }
+}
+```
+
+Note that there is no `"magic word"` secret code included anywhere.
+
+Instead, the string has been hashed and stored as `puzzleHash: "0xf6eadd29a1811cb6d151eab8645fae31b713575726deacfb0c8ebe6677ecb33e"` 
+
+### 6.2. Solve the puzzle to mint
+
+Now let's put on our "minter role" hat and try to mint this token script by providing the `"magic word"` and submitting to the blockchain:
+
+```javascript
+let tx = await c0.token.send([token], [{ puzzle: "magic word" }])
+```
+
+What this does is:
+
+1. The second argument `[{ puzzle: "magic word" }]` is passed into the c0.js library
+2. c0.js hashes the "magic word" string
+3. c0.js passes the hash of the "magic word" to the C0 contract when submitting the minting transaction
+4. The c0 contract compares the `token.body.puzzleHash` with the hash of the "magic word", and if they match, the token is minted.
+
+> Note that we are using the c0.js library here, not nuron.js.
+>
+> The nuron.js library is used for automatically printing (creating) tokens, but not for minting (Nuron was deliberately designed to NEVER connect to the blockchain for security reasons).
+>
+> The c0.js library is the library you can use to interact with the c0 contract on the blockchain. So in this case when you're minting you need to use the c0.js
+
+---
+
+## 7. Address lock
+
+### 7.1. Minter address lock
+
+Cell lets you program **who can mint a token** directly into a script. Each token can be individually programmed differently.
+
+> **Note**
+>
+> In most NFT contracts, "minting" means the minter will receive the minted token.
+>
+> However with Cell, the "minter" and the "receiver" roles are decoupled and programmable, which means you can program who can mint and who can receive, separately.
+>
+> To learn about how you can restrict the "receiver" regardless of who mints the NFT, see the "Giftable NFTs" section.
+
+#### Single minter authorization
+
+Let's think about a simple scenario where you want to create a script that can ONLY be minted by (submitted to the blockchain by) Alice, whose address is "0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41":
+
+
+```javascript
+let script = await nuron.token.create({
+  cid: "bafkreiecoogmguhvhvslpait4kknvmic5344dgvrs3l5migok5aj33pcei",
+  sender: "0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41"
+})
+console.log("script", script)
+```
+
+This will create a script that can ONLY be minted by `0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41`.
+
+Here's what it would look like:
+
+```javascript
+script {
+  body: {
+    signature: '0xed3403edf1fb212cbe289ad132a94ea2d4a5d808dcff19b3f25c7651548fc8173c78599b4523aa3b57d5991a881d7e3fcbdbf60ddb88ed96b9f54e57077544e41b',
+    cid: 'bafkreiecoogmguhvhvslpait4kknvmic5344dgvrs3l5migok5aj33pcei',
+    id: '59004829238478164602790103135035438545739640263958690554266001662053689713186',
+    encoding: 0,
+    sender: '0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41',
+    receiver: '0x0000000000000000000000000000000000000000',
+    value: '0',
+    start: '0',
+    end: '18446744073709551615',
+    royaltyReceiver: '0x0000000000000000000000000000000000000000',
+    royaltyAmount: '0',
+    relations: [],
+    senders: [],
+    sendersHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    receivers: [],
+    receiversHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    puzzleHash: '0x0000000000000000000000000000000000000000000000000000000000000000'
+  },
+  domain: {
+    name: '_test_',
+    chainId: 4,
+    verifyingContract: '0x93f4f1e0dca38dd0d35305d57c601f829ee53b51',
+    version: '1'
+  }
+}
+```
+
+This script can be submitted to the blockchain ONLY by Alice (whose address is `0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41`) with:
+
+```javascript
+let tx = await c0.token.send([script])
+```
+
+#### Minter can send to any receiver
+
+With Cell, minting and receiving of a newly minted NFT can be programmed separately.
+
+Using the same example from above, because the script does NOT explicitly say who can receive the minted NFT, it means Alice (who is approved to mint through the `senders` opcode), can mint and send the minted NFT to any address she wants.
+
+She can do it with:
+
+```javascript
+let tx = await c0.token.send([script], [{ receiver: bob_address }])
+```
+
+This script can be submitted ONLY by Alice (`0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41`), and the minted token will go to `bob_address`.
+
+
+#### Multiple allowed minters
+
+You can create a "guest list" for each token, where the token can be minted **ONLY IF the script is submitted by one of the addresses on the senders list**. Anyone on the list can mint the token on a first come first served basis.
+
+> You can combine this feature with other filtering features such as the hash puzzle, receivers, etc. in order to narrow down the minting condition.
+
+This feature is powered by [merkle trees](https://en.wikipedia.org/wiki/Merkle_tree), and enforced onchain.
+
+To make use of this feature you can utilize the `senders[]` opcode when creating a script. Let's say you want to only allow three addresses to mint a token (on a first come first served basis):
+
+```javascript
+let script = await nuron.token.create({
+  cid: metadata_cid,
+  senders: [
+    "0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41",
+    "0x42d91c0e161cB9709B7c718df25bC3f9F9666a87",
+    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+  ]
+})
+console.log("Script =", script)
+```
+
+This will create a script that looks like this:
+
+```javascript
+Script = {
+  body: {
+    signature: '0xd65f1945b47c49099c6f5d33338bb95091341121d451e277c703287f2f3040261ec2f1c5006f80a8114c89626b8292fcd53eae829e1de8328e9384f68341ddc01b',
+    cid: 'bafkreiecoogmguhvhvslpait4kknvmic5344dgvrs3l5migok5aj33pcei',
+    id: '59004829238478164602790103135035438545739640263958690554266001662053689713186',
+    encoding: 0,
+    sender: '0x0000000000000000000000000000000000000000',
+    receiver: '0x0000000000000000000000000000000000000000',
+    value: '0',
+    start: '0',
+    end: '18446744073709551615',
+    royaltyReceiver: '0x0000000000000000000000000000000000000000',
+    royaltyAmount: '0',
+    relations: [],
+    sendersHash: '0xdad4caef045ea01928e4235e51aeb73ab2fdde1877c9acba801a7967d7c1b1cf',
+    senders: [
+      '0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41',
+      '0x42d91c0e161cB9709B7c718df25bC3f9F9666a87',
+      '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'
+    ],
+    receivers: [],
+    receiversHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    puzzleHash: '0x0000000000000000000000000000000000000000000000000000000000000000'
+  },
+  domain: {
+    name: '_test_',
+    chainId: 4,
+    verifyingContract: '0x93f4f1e0dca38dd0d35305d57c601f829ee53b51',
+    version: '1'
+  }
+}
+```
+
+Notice the `senders` array as well as the `sendersHash` attribute.
+
+- `senders`: contains the same address list passed in to create the script.
+- `sendersHash`: This is the merkle root of the `senders` group. This will be used to create a merkle proof and submitted to the contract when you send the minting transaction.
+
+Now, anyone on this list can take the JSON script and submit to the blockchain to mint it into an NFT:
+
+- `0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41`
+- `0x42d91c0e161cB9709B7c718df25bC3f9F9666a87`
+- `0x70997970C51812dc3A010C7d01b50e0d17dc79C8`
+
+The command is as follows:
+
+```javascript
+let tx = await c0.token.send([script])
+```
+
+Of course, since the script does not specify any `receiver` or `receivers`, anyone on the minters list can send it to whichever address they want, with something like this:
+
+```javascript
+let tx = await c0.token.send([script], [{ receiver: carol_address }])
+```
+
+---
+
+### 7.2. Receiver address lock
+
+There are two ways to gift NFTs with Cell:
+
+1. use the `gift()` method to directly gift: This feature is only available to the owner of the contract.
+2. create a script with a `receiver` attribute: This feature is available to anyone.
+
+In this section we will take a look at the second option primarily.
+
+Basically the main difference between the first and the second option is, while the first option is only for the collection owner (one person) to gift tokens to people, the second option lets ANYONE print tokens that will be sent to someone else when minted.
+
+A good use case is when you are building an on-demand NFT minting app that allows any random people to mint and send NFTs to someone else as a gift. One example is [PFP](https://pfp.factoria.app/):
+
+![pfp.png](pfp.png)
+
+1. **Gift:** You can mint a Twitter profile picture of your friend into an NFT and gift it to THEM all within the app:
+2. **Wishilist:** If you want to mint your Twitter profile picture into an NFT but don't have money, you can create a token with your address as `receiver`, and ask someone else to mint it for you. When they mint the token, the NFT will be sent to YOU.
+
+#### Giftable NFT
+
+First you can create a script:
+
+```javascript
+let token = await nuron.token.create({
+  cid: metadata_cid,
+  receiver: receiver_address
+})
+```
+
+And then mint it by sending it to the blockchain:
+
+```javascript
+let token = await c0.token.send([token])
+```
+
+#### Ask for a gift
+
+Same dynamic as above, but the only difference is the receiver initiates everything:
+
+1. Bob wants an NFT
+2. Bobcreates a script through an NFT app, with a receiver attribute that points to his address (not yet minted)
+3. Bob sends the script (JSON) to Alice and asks her to mint it for her.
+4. Alice simply submits the script to the blockchain and the corresponding NFT is created and sent to Bob in an atomic action.
+
+Here's how Bob would create a script that says "gift me an NFT":
+
+```javascript
+let token = await nuron.token.create({
+  cid: metadata_cid,
+  receiver: bob_address
+})
+console.log("Bob's wishlist:", token)
+```
+
+The resulting token will look like:
+
+```javascript
+Bob's wishlist: {
+  body: {
+    signature: '0xf37dc71fd3fdebf5620da6ff03870159c847d3ff908af0ed4511c920c827b9932311c2ee99f133f05c0e8c7dbd74f4afe2858368388b52ca2459fcd4035def161c',
+    cid: 'bafkreiecoogmguhvhvslpait4kknvmic5344dgvrs3l5migok5aj33pcei',
+    id: '59004829238478164602790103135035438545739640263958690554266001662053689713186',
+    encoding: 0,
+    sender: '0x0000000000000000000000000000000000000000',
+    receiver: '0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41',
+    value: '0',
+    start: '0',
+    end: '18446744073709551615',
+    royaltyReceiver: '0x0000000000000000000000000000000000000000',
+    royaltyAmount: '0',
+    relations: [],
+    senders: [],
+    sendersHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    receivers: [],
+    receiversHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    puzzleHash: '0x0000000000000000000000000000000000000000000000000000000000000000'
+  },
+  domain: {
+    name: '_test_',
+    chainId: 4,
+    verifyingContract: '0x93f4f1e0dca38dd0d35305d57c601f829ee53b51',
+    version: '1'
+  }
+}
+```
+
+Notice the `"receiver": "0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41"` part, which is Bob's address.
+
+When this script is sent to the C0 contract, the minted token will be sent to `0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41` (bob), NOT to whoever sent the transaction.
+
+So Bob now has a whishlist, he can send the JSON over to Alice using various routes:
+
+1. send over email
+2. send over social media
+3. or the minting app that just let Bob create this token may store it in their backend and notify Alice
+4. encode the JSON into a base64 encoded URL parameter (so it doesn't need to be stored in the backend, but just share a long URL)
+
+Alice then can take the JSON ans submit it to the contract with:
+
+```
+let tx = await c0.token.send([token])
+```
+
+When this transaction goes through, Bob will have received the NFT he created, for FREE, because Alice was the one who sent the transaction.
+
+---
+
+#### Multiple allowed receivers
+
+We have just looked at how you can use the `receiver` opcode to specify a single allowed receiver. This is the most efficient way to specify a single receiver when you have a specific account in mind.
+
+However sometimes you may want to create a script that can be gifted to anyone on a list.
+
+For this purpose you can use the `receivers` opcode to specify multiple accounts allowed to receive the gift. Here's a quick difference:
+
+- The `receiver` opcode is directly submitted to the blockchain. Once the script is created, it can ONLY be used to mint and send the token to this receiver, which means the receiver is fixed.
+- The `receivers` opcode creates a [merkle tree](https://en.wikipedia.org/wiki/Merkle_tree), and it dynamically generates and submits a merkle proof for a receiver when submitting to the blockchain. This means **anyone** on the `receivers` list can potentially receive the NFT, and the actual receiver gets decided when the script is eventually submitted to the blockchain by the minter.
+
+Here's how the `receivers` feature works:
+
+1. The NFT creator can create a script with a `receivers` array.
+2. A minter comes along and submits the script to the blockchain to mint it into an NFT. He can specify a receiver when calling the `c0.token.send([script], [{ receiver: receiver }])` (The second parameter).
+3. This `receiver` parameter must be included in the `receivers` array inside the script. Otherwise the mint will fail.
+4. When the mint succeeds, regardless of who sent the transaction, the minted NFT will be sent to the `receiver`.
+
+> You can combine this feature with other filtering mechanism such as the hash puzzle feature or the sender/senders feature.
+
+Let's say you want to only allow three addresses to mint a token (on a first come first served basis):
+
+```javascript
+let token = await nuron.token.create({
+  cid: metadata_cid,
+  receivers: [
+    "0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41",
+    "0x42d91c0e161cB9709B7c718df25bC3f9F9666a87",
+    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+  ]
+})
+console.log("Script =", token)
+```
+
+This will create a script that looks like this:
+
+```javascript
+Script = {
+  body: {
+    signature: '0x30cdc080ec6f6a90a63273278258065e2de7107564d8a593f1e6454569d3139f61b4a08f089514ef040f859e4a94b3c8cecd4afafc9b56c6acdc9ef9aff9b8b61b',
+    cid: 'bafkreiecoogmguhvhvslpait4kknvmic5344dgvrs3l5migok5aj33pcei',
+    id: '59004829238478164602790103135035438545739640263958690554266001662053689713186',
+    encoding: 0,
+    sender: '0x0000000000000000000000000000000000000000',
+    receiver: '0x0000000000000000000000000000000000000000',
+    value: '0',
+    start: '0',
+    end: '18446744073709551615',
+    royaltyReceiver: '0x0000000000000000000000000000000000000000',
+    royaltyAmount: '0',
+    relations: [],
+    senders: [],
+    sendersHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    receiversHash: '0xdad4caef045ea01928e4235e51aeb73ab2fdde1877c9acba801a7967d7c1b1cf',
+    receivers: [
+      '0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41',
+      '0x42d91c0e161cB9709B7c718df25bC3f9F9666a87',
+      '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'
+    ],
+    puzzleHash: '0x0000000000000000000000000000000000000000000000000000000000000000'
+  },
+  domain: {
+    name: '_test_',
+    chainId: 4,
+    verifyingContract: '0x93f4f1e0dca38dd0d35305d57c601f829ee53b51',
+    version: '1'
+  }
+}
+```
+
+Notice the `receivers` array as well as the `receiversHash` attribute.
+
+- `receivers`: contains the same `receivers` address list passed in to create the script.
+- `receiversHash`: This is the merkle root of the `receivers` group. This will be used to create a merkle proof and submitted to the contract later.
+
+Now, ONLY the addresses on this list can **receive** the NFTs:
+
+- 0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41
+- 0x42d91c0e161cB9709B7c718df25bC3f9F9666a87
+- 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+
+If the minter--regardless of who it is--tries to mint to another account, the mint transaction will fail.
+
+So how would it work in practice?
+
+Normally you only need the first parameter when calling the `send()` method, which submits Cell scripts to the blockchain:
+
+```javascript
+let tx = await c0.token.send([script])
+```
+
+Above command will **mint and send the token to the minter** who's submitting the script to the blockchain (assuming that the minting conditions specified in the script doesn't preclude the minter from minting)
+
+But you can additionally provide an "input" (the second parameter), which will redirect the minted token to the provided receiver, like this:
+
+```javascript
+let tx = await c0.token.send([script], [{ receiver: receiver_address }])
+```
+
+1. If the `script` body contains a `receivers` array, the script can only be minted if the `receiver_address` is part of the `receivers` array.
+2. If the `script` body DOES NOT contain a `receivers` array, the minter can specify whatever `receiver_address` he wants, and it will be sent to that address.
+
+
+> **How is "receivers" different from "senders"?**
+>
+> - with `senders` you can specify who can "mint" the token (minting doesn't always mean the minter will receive the token, because you can specify the `receiver` when minting).
+> - with `receivers` you can specify who can "receive" the token when minted (it doesn't care about who mints the token, as long as the `receiver` argument when calling `c0.token.send()` is included in the `receivers` array)
+
+
+---
+
+## 8. Balance lock
+
+### 8.1. Minter balance lock
+
+You can authorize minting based on how much balance a minter holds in an **ERC20 or an ERC721 contract**.
+
+#### Same contract balance
+
+Imagine you wanted to let people mint an NFT ONLY if they owned specific NFTs from the same collection.
+
+Here's how to create the script:
+
+```javascript
+let script = await nuron.token.create({
+  cid: metadata_cid,
+  balance: [{
+    who: "sender",
+    what: 2
+  }]
+})
+console.log("Script", script)
+```
+
+This creates the following script:
+
+```javascript
+Script = {
+  "body": {
+    "signature": "0x64eb2e303cfd8a1e1e4b6d30bed29d0d48992a6f49c6fc0dc875126fdad908aa16f9e98871eb616bffea4fb02fd73c0967a26b74c02a9b7375d4d88f29b61e581b",
+    "cid": "bafkreiecoogmguhvhvslpait4kknvmic5344dgvrs3l5migok5aj33pcei",
+    "id": "59004829238478164602790103135035438545739640263958690554266001662053689713186",
+    "encoding": 0,
+    "sender": "0x0000000000000000000000000000000000000000",
+    "receiver": "0x0000000000000000000000000000000000000000",
+    "value": "0",
+    "start": "0",
+    "end": "18446744073709551615",
+    "royaltyReceiver": "0x0000000000000000000000000000000000000000",
+    "royaltyAmount": "0",
+    "relations": [
+      {
+        "code": 4,
+        "addr": "0x0000000000000000000000000000000000000000",
+        "id": 2
+      }
+    ],
+    "senders": [],
+    "sendersHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "receivers": [],
+    "receiversHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "puzzleHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "domain": {
+    "name": "_test_",
+    "chainId": 4,
+    "verifyingContract": "0x93f4f1e0dca38dd0d35305d57c601f829ee53b51",
+    "version": "1"
+  }
+}
+```
+
+The `balance` array creates the `body.relations` array. Each object in the `relations` array has the following attributes:
+
+1. `code`: relationship code. In this case it's 4, which means "sender has balance"
+2. `addr`: the contract address. In this case it's a `0x0` address so it means the current contract.
+3. `id`: this can mean different things depending on the `code`, but in this case it means the minimum balance required.
+
+So the script is essentially saying:
+
+**"Anyone with at least 2 tokens on the current contract can mint this token".**
+
+#### Any ERC721 balance
+
+We can take this further, and create tokens that can be minted based on your ownership of OTHER NFT collections. You simply need to provide the contract address inside the `balance` array:
+
+```javascript
+let script = await nuron.token.create({
+  cid: metadata_cid,
+  balance: [{
+    who: "sender",
+    where: "0x79fcdef22feed20eddacbb2587640e45491b757f"    // mfers NFT contract
+    what: 2
+  }]
+})
+console.log("Script", script)
+```
+
+This creates a script that looks like this:
+
+```javascript
+Script = {
+  "body": {
+    "signature": "0xf85dbf5ef8cf7c789b9a6bc78410e749485813e5a2907c7bb90b2c0fea00d0f12b2ee166cccf4ebd4ad3abc5175e996b9f2735fca669a1fcb595ad96eb8ad7671b",
+    "cid": "bafkreiecoogmguhvhvslpait4kknvmic5344dgvrs3l5migok5aj33pcei",
+    "id": "59004829238478164602790103135035438545739640263958690554266001662053689713186",
+    "encoding": 0,
+    "sender": "0x0000000000000000000000000000000000000000",
+    "receiver": "0x0000000000000000000000000000000000000000",
+    "value": "0",
+    "start": "0",
+    "end": "18446744073709551615",
+    "royaltyReceiver": "0x0000000000000000000000000000000000000000",
+    "royaltyAmount": "0",
+    "relations": [
+      {
+        "code": 4,
+        "addr": "0x79fcdef22feed20eddacbb2587640e45491b757f",
+        "id": 2
+      }
+    ],
+    "senders": [],
+    "sendersHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "receivers": [],
+    "receiversHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "puzzleHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "domain": {
+    "name": "_test_",
+    "chainId": 4,
+    "verifyingContract": "0x93f4f1e0dca38dd0d35305d57c601f829ee53b51",
+    "version": "1"
+  }
+}
+```
+
+The `balance` array creates the `body.relations` array in the script. Each object in the `relations` array has the following attributes:
+
+1. `code`: relationship code. In this case it's 4, which means "sender has balance"
+2. `addr`: the contract address. In this case it's `0x79fcdef22feed20eddacbb2587640e45491b757f`, a remote contract, which happens to be an NFT (ERC721) contract.
+3. `id`: this can mean different things depending on the `code`, but in this case it means the minimum balance required.
+
+So the script is essentially saying:
+
+**"Anyone with at least 2 mfers NFT (the NFT contract at 0x79fcdef22feed20eddacbb2587640e45491b757f) can mint this token".**
+
+#### Any ERC20 balance
+
+Sometimes you may want to allow minting only to those who hold a specific ERC20 token. This may be useful for many cases such as:
+
+1. **DAO NFTs:** Only a DAO member (who holds the ERC20 tokens for the DAO) can mint the NFT
+2. **ERC20 holder airdrop:** Airdrop NFTs to a specific community (ERC20 holder community)
+3. **ERC20 based discount:** Provide discounted minting rate (using the `value` opcode) to a certain ERC20 community
+4. and many more
+
+It works exactly the same as the NFT balance based authorization, except that it's for ERC20. It can be ANY ERC20 contract.
+
+The command is exactly the same. You just need to provide an ERC20 contract address:
+
+```javascript
+let script = await nuron.token.create({
+  cid: metadata_cid,
+  balance: [{
+    who: "sender",
+    where: "0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71"   // ConstitutionDAO $PEOPLE ERC20 token address
+    what: 1000
+  }]
+})
+console.log("Script", script)
+```
+
+
+This generates the following script:
+
+```javascript
+Script = {
+  "body": {
+    "signature": "0x0d159a010f6745bc9df266e68afa2be13bad91d27e174560ae74ccf833889c3b6be354a7871bb05994ba3bc1ccb70c1fb8a3ea382eac682644096ad9f286af251c",
+    "cid": "bafkreiecoogmguhvhvslpait4kknvmic5344dgvrs3l5migok5aj33pcei",
+    "id": "59004829238478164602790103135035438545739640263958690554266001662053689713186",
+    "encoding": 0,
+    "sender": "0x0000000000000000000000000000000000000000",
+    "receiver": "0x0000000000000000000000000000000000000000",
+    "value": "0",
+    "start": "0",
+    "end": "18446744073709551615",
+    "royaltyReceiver": "0x0000000000000000000000000000000000000000",
+    "royaltyAmount": "0",
+    "relations": [
+      {
+        "code": 4,
+        "addr": "0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71",
+        "id": 1000
+      }
+    ],
+    "senders": [],
+    "sendersHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "receivers": [],
+    "receiversHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "puzzleHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "domain": {
+    "name": "_test_",
+    "chainId": 4,
+    "verifyingContract": "0x93f4f1e0dca38dd0d35305d57c601f829ee53b51",
+    "version": "1"
+  }
+}
+```
+
+The `balance` array creates the `body.relations` array in the script. Each object in the `relations` array has the following attributes:
+
+1. `code`: relationship code. In this case it's 4, which means "sender has balance"
+2. `addr`: the contract address. In this case it's `0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71`, which is an ERC20 contract for ConstitutionDAO's $PEOPLE token
+3. `id`: this can mean different things depending on the `code`, but in this case it means the minimum balance required.
+
+So the script is essentially saying:
+
+**"Anyone with at least 1000 $PEOPLE token can mint this NFT".**
+
+---
+
+### 8.2. Receiver balance lock
+
+You can authorize minting based on how much balance a receiver holds in an **ERC20 or an ERC721 contract**.
+
+#### Same contract balance
+
+Imagine you wanted to let people mint an NFT ONLY if the receiver the token is being minted to owns specific NFTs from the same collection.
+
+Here's how to create the script:
+
+```javascript
+let script = await nuron.token.create({
+  cid: metadata_cid,
+  balance: [{
+    who: "receiver",
+    what: 2
+  }]
+})
+console.log("Script", script)
+```
+
+This creates the following script:
+
+```javascript
+Script = {
+  "body": {
+    "signature": "0x15b3da5c39433b94b7c9c1fc32b266380b7661f5cc080a43db3c161f49bd7fd74189ded6aad4d54ad825a775ea376ce80182e76d3cd8c6afb585ae1c47044b0f1c",
+    "cid": "bafkreiecoogmguhvhvslpait4kknvmic5344dgvrs3l5migok5aj33pcei",
+    "id": "59004829238478164602790103135035438545739640263958690554266001662053689713186",
+    "encoding": 0,
+    "sender": "0x0000000000000000000000000000000000000000",
+    "receiver": "0x0000000000000000000000000000000000000000",
+    "value": "0",
+    "start": "0",
+    "end": "18446744073709551615",
+    "royaltyReceiver": "0x0000000000000000000000000000000000000000",
+    "royaltyAmount": "0",
+    "relations": [
+      {
+        "code": 5,
+        "addr": "0x0000000000000000000000000000000000000000",
+        "id": 2
+      }
+    ],
+    "senders": [],
+    "sendersHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "receivers": [],
+    "receiversHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "puzzleHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "domain": {
+    "name": "_test_",
+    "chainId": 4,
+    "verifyingContract": "0x93f4f1e0dca38dd0d35305d57c601f829ee53b51",
+    "version": "1"
+  }
+}
+```
+
+The `balance` array creates the `body.relations` array. Each object in the `relations` array has the following attributes:
+
+1. `code`: relationship code. In this case it's 5, which means "receiver has balance"
+2. `addr`: the contract address. In this case it's a `0x0` address so it means the current contract.
+3. `id`: this can mean different things depending on the `code`, but in this case it means the minimum balance required.
+
+So the script is essentially saying:
+
+**"Anyone can mint this token as long as it's sent to an account with at least 2 tokens on the current contract".**
+
+#### Any ERC721 balance
+
+We can take this further, and create tokens that can be minted based on your ownership of OTHER NFT collections. You simply need to provide the contract address inside the `balance` array:
+
+```javascript
+let script = await nuron.token.create({
+  cid: metadata_cid,
+  balance: [{
+    who: "receiver",
+    where: "0x79fcdef22feed20eddacbb2587640e45491b757f"    // mfers NFT contract
+    what: 2
+  }]
+})
+console.log("Script", script)
+```
+
+This creates a script that looks like this:
+
+```javascript
+Script = {
+  "body": {
+    "signature": "0x913f44393a3977b0eb4dc5bcde1bf8a9098c27c67961eb6114d1a7b430c6399a07bf6cf155c2b33226c376ff098e4939ea83dc7c528b34c7fbf8f33b772ed43a1b",
+    "cid": "bafkreiecoogmguhvhvslpait4kknvmic5344dgvrs3l5migok5aj33pcei",
+    "id": "59004829238478164602790103135035438545739640263958690554266001662053689713186",
+    "encoding": 0,
+    "sender": "0x0000000000000000000000000000000000000000",
+    "receiver": "0x0000000000000000000000000000000000000000",
+    "value": "0",
+    "start": "0",
+    "end": "18446744073709551615",
+    "royaltyReceiver": "0x0000000000000000000000000000000000000000",
+    "royaltyAmount": "0",
+    "relations": [
+      {
+        "code": 5,
+        "addr": "0x79fcdef22feed20eddacbb2587640e45491b757f",
+        "id": 2
+      }
+    ],
+    "senders": [],
+    "sendersHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "receivers": [],
+    "receiversHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "puzzleHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "domain": {
+    "name": "_test_",
+    "chainId": 4,
+    "verifyingContract": "0x93f4f1e0dca38dd0d35305d57c601f829ee53b51",
+    "version": "1"
+  }
+}
+```
+
+The `balance` array creates the `body.relations` array in the script. Each object in the `relations` array has the following attributes:
+
+1. `code`: relationship code. In this case it's 5, which means "receiver has balance"
+2. `addr`: the contract address. In this case it's `0x79fcdef22feed20eddacbb2587640e45491b757f`, a remote contract, which happens to be an NFT (ERC721) contract.
+3. `id`: this can mean different things depending on the `code`, but in this case it means the minimum balance required.
+
+So the script is essentially saying:
+
+**"Anyone can mint this NFT as long as it's sent to an account that has at least 2 mfers NFT (the NFT contract at 0x79fcdef22feed20eddacbb2587640e45491b757f)".**
+
+#### Any ERC20 balance
+
+Sometimes you may want to allow minting only when the minted tokens are sent to those who hold a specific ERC20 token. This may be useful for many cases such as:
+
+1. **DAO NFTs:** Only a DAO member (who holds the ERC20 tokens for the DAO) can mint the NFT
+2. **ERC20 holder airdrop:** Airdrop NFTs to a specific community (ERC20 holder community)
+3. and many more
+
+It works exactly the same as the NFT balance based authorization, except that it's for ERC20. It can be ANY ERC20 contract.
+
+The command is exactly the same. You just need to provide an ERC20 contract address:
+
+```javascript
+let script = await nuron.token.create({
+  cid: metadata_cid,
+  balance: [{
+    who: "receiver",
+    where: "0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71"   // ConstitutionDAO $PEOPLE ERC20 token address
+    what: 1000
+  }]
+})
+console.log("Script", script)
+```
+
+
+This generates the following script:
+
+```javascript
+Script = {
+  "body": {
+    "signature": "0xc5a43d594f2286b29bead36550ba17710451ade2351faa551fdf347247abb6e34500155fef85aca54095a736f2ea1a47d197f87c53441010885432919394bc631c",
+    "cid": "bafkreiecoogmguhvhvslpait4kknvmic5344dgvrs3l5migok5aj33pcei",
+    "id": "59004829238478164602790103135035438545739640263958690554266001662053689713186",
+    "encoding": 0,
+    "sender": "0x0000000000000000000000000000000000000000",
+    "receiver": "0x0000000000000000000000000000000000000000",
+    "value": "0",
+    "start": "0",
+    "end": "18446744073709551615",
+    "royaltyReceiver": "0x0000000000000000000000000000000000000000",
+    "royaltyAmount": "0",
+    "relations": [
+      {
+        "code": 5,
+        "addr": "0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71",
+        "id": 1000
+      }
+    ],
+    "senders": [],
+    "sendersHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "receivers": [],
+    "receiversHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "puzzleHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "domain": {
+    "name": "_test_",
+    "chainId": 4,
+    "verifyingContract": "0x93f4f1e0dca38dd0d35305d57c601f829ee53b51",
+    "version": "1"
+  }
+}
+```
+
+The `balance` array creates the `body.relations` array in the script. Each object in the `relations` array has the following attributes:
+
+1. `code`: relationship code. In this case it's 5, which means "receiver has balance"
+2. `addr`: the contract address. In this case it's `0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71`, which is an ERC20 contract for ConstitutionDAO's $PEOPLE token
+3. `id`: this can mean different things depending on the `code`, but in this case it means the minimum balance required.
+
+So the script is essentially saying:
+
+**"Anyone can mint this NFT, as long as it's sent to an account with at least 1000 $PEOPLE token can mint this NFT".**
+
+
+---
+
+## 9. Ownership lock
+
+### 9.1. Minter NFT ownership lock
+
+We can go further than just authorizing based on balance only.
+
+We can program each script so it can be minted **only when the minter owns a SPECIFIC NFT item.**
+
+This is useful when you want to create a dynamic where a new NFT can only be minted by the owners of another NFT. Some examples:
+
+- You can only mint **"final boss"** when you have collected **"level 1 boss"**, **"level 2 boss"**, and **"level 3 boss"**.
+- You can mint a **"computer"** when you own a **"monitor"**, a **"keyboard"**, and a **"mouse"**.
+
+#### Local NFT ownership
+
+Let's say you want to create a script that lets anyone mint a **computer** NFT when they have a **monitor**, **keyboard**, and **mouse**.
+
+```javascript
+let script = await nuron.token.create({
+  cid: computer_cid,
+  owns: [{
+    who: "sender",
+    what: montior_tokenid
+  }, {
+    who: "sender",
+    what: keyboard_tokenid
+  }, {
+    who: "sender",
+    what: mouse_tokenid
+  }]
+})
+```
+
+This will create a script that can be minted ONLY WHEN the minter (sender) already owns all of:
+
+1. the `monitor_tokenid` NFT
+2. the `keyboard_tokenid` NFT
+3. the `mouse_tokenid` NFT
+
+#### Any NFT ownership
+
+You can even cross over to ANY OTHER NFT contract. These NFT contracts don't have to be powered by Cell. It can be any NFT implementing ERC721.
+
+The only difference here is you just need to specify the contract address for each ownership description. Here's an example:
+
+```javascript
+let script = await nuron.token.create({
+  cid: bored_doodles_cid,
+  owns: [{
+    who: "sender",
+    where: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",    // bored ape yacht club contract
+    what: 1217
+  }, {
+    who: "sender",
+    where: "0x8a90cab2b38dba80c64b7734e58ee1db38b8992e",    // doodles NFT contract
+    what: 3485
+  }]
+})
+```
+
+This will create a script that can be minted ONLY IF the sender (minter) owns all of:
+
+1. The Bored Ape Yacht Club NFT `#1217`
+2. The Doodle NFT `#3485` 
+
+---
+
+### 9.2. Receiver NFT ownership lock
+
+Just like the **Sender NFT ownership lock**, you can restrict minting based on who will receive the minted NFT.
+
+This may be useful in many cases. Some examples:
+
+1. You know who you want to receive the tokens, but don't know whether they will want to mint themselves.
+2. You want to distribute NFTs to a certain audience but allow a delegation of minting to a 3rd party (such as a service provider)
+
+#### Local NFT ownership lock
+
+Let's say you want to write a script that says:
+
+**"Anyone can mint this computer token, but the minted token can only be sent to an account that owns a monitor, a keyboard, and a mouse."**
+
+```javascript
+let script = await nuron.token.create({
+  cid: computer_cid,
+  owns: [{
+    who: "receiver",
+    what: montior_tokenid
+  }, {
+    who: "receiver",
+    what: keyboard_tokenid
+  }, {
+    who: "receiver",
+    what: mouse_tokenid
+  }]
+})
+```
+
+Now when you publish this script somewhere, or if you hand it over to someone, they can mint it to whoever qualifies for this condition.
+
+In this case, you need to pass `receiver` as the second parameter when calling the send method:
+
+```javascript
+let tx = await c0.token.send([script], [{ receiver: monitor_keyboard_mouse_owner_address }])
+```
+
+The token can be minted by anyone, but the minted token will be automatically sent to the `monitor_keyboard_mouse_owner_address` when minted.
+
+#### Any NFT ownership lock
+
+You can also write a script that can be minted to a receiver as long as the account owns NFTs from ANY contract.
+
+You just need to specify the NFT contract address for each condition:
+
+```javascript
+let script = await nuron.token.create({
+  cid: bored_doodles_cid,
+  owns: [{
+    who: "receiver",
+    where: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",    // bored ape yacht club contract
+    what: 1217
+  }, {
+    who: "receiver",
+    where: "0x8a90cab2b38dba80c64b7734e58ee1db38b8992e",    // doodles NFT contract
+    what: 3485
+  }]
+})
+```
+
+Now when you publish this script somewhere, or if you hand it over to someone, they can mint it to whoever qualifies for this condition.
+
+In this case, you need to pass `receiver` as the second parameter when calling the send method:
+
+```javascript
+let tx = await c0.token.send([script], [{ receiver: apes_doodles_owner_address }]
+```
+
+The token can be minted by anyone, but the minted token will be automatically sent to the `apes_doodles_owner_address` when minted.
+
+
+---
+
+## 10. Burnership lock
+
+Cell is an immutable NFT system that implements immutable tokenIds.
+
+Once a Cell token is minted, the tokenId uniquely encodes its content, and because a minted tokenId cannot change, you can't change its content.
+
+And the great part is, we can take advantage of this immutable property to implement a powerful mutable system. Here's a quick summary:
+
+1. To update an NFT X into Y, you can burn X and use its "proof of burn" to mint Y.
+2. To combine an NFT A and B to create C, you burn A and B, and mint C using the proofs of burn for A and B.
+
+This paradigm of creating mutability from immutability has many benefits, including traceability, safety, efficiency, etc. and can work across contracts and blockchains, making the Cell protocol a Universal NFT protocol that's portable anywhere regardless of blockchains.
+
+> **Note**
+>
+> To make sure an NFT is completely burned and cannot be minted again, you must use the `burn()` method instead of simply sending the NFTs to a `0x0` address.
+
+
+
+### 10.1. Minter NFT burnership lock
+
+Let's look at how we can use the **minter's burnership (the proof of burn)** to trustlessly mutate tokens.
+
+#### Transform one to another
+
+Basically the idea is **"if you burn NFT A, you can mint NFT B"**, which is equivalent to **"If you own A, you can transform it into B"**.
+
+For example, let's say you want to let people mint **"coal"** by burning **"wood"**. You can write the following script:
+
+```javascript
+let script = await nuron.token.create({
+  cid: coal_cid,
+  burned: [{
+    who: "sender",
+    what: wood_tokenid
+  }]
+})
+```
+
+This script can only be minted when the sender (minter) has already burned the `wood_tokenid` NFT on the same contract.
+
+#### Combine multiple to create another
+
+You don't have to burn just one NFT. Sometimes you may want to burn multiple items to mint a new item.
+
+Let's say you want to combine `noodle` with `broth` to make a `ramen`. You can create the following script:
+
+```javascript
+let script = await nuron.token.create({
+  cid: ramen_cid,
+  burned: [{
+    who: "sender",
+    what: noodle_tokenid,
+  }, {
+    who: "sender",
+    what: broth_tokenid,
+  }]
+})
+```
+
+This script will mint a `ramen_cid` NFT only if the `noodle_tokenid` and the `broth_tokenid` were burned by the same account sending the transaction.
+
+#### Cross-collection swap
+
+The proof of burn system applies not just to your own contract. All Cell-powered contracts can interoperate through burnership.
+
+For example, let's say there are two separate contracts (Each may have a different creator, or the same creator), both powered by Cell:
+
+1. Sad Ape Boat Club
+2. Excited Ape Mile High Club
+
+As the creator of the **Excited Ape Mile High Club** you may want to let the **Sad Ape Boat Club** morph their Sad apes into Excited apes.
+
+You can do this by **creating a script on Excited Ape Mile High Club contract** that lets people mint a new NFT when they have burned a specific Sad Ape. Example code:
+
+```javascript
+let script = await nuron.token.create({
+  cid: excited_ape_cid,
+  burned: [{
+    who: "sender",
+    where: sad_ape_boat_club_address,
+    what: sad_ape_tokenid,
+  }]
+})
+```
+
+This will create a script that can be submitted to the Excited Ape Mile High Club contract, which checks if the Sad Ape Boat Club NFT `sad_ape_tokenid` at `sad_ape_boat_club_address` was burned, and allows minting only if this is the case.
+
+
+---
+
+### 10.2. Receiver NFT burnership lock
+
+Let's look at how we can use the **receiver's burnership (the proof of burn)** to trustlessly mutate tokens.
+
+The difference here is that we're using the proof of burn of the **receiver** instead of the **sender (minter)**.
+
+#### Transform one to another
+
+For example, let's say you don't care you who mints the tokens, but just want to create an item called "coal", that can only be created when the receiver had owned "wood" but burned it.
+
+
+```javascript
+let script = await nuron.token.create({
+  cid: coal_cid,
+  burned: [{
+    who: "receiver",
+    what: wood_tokenid
+  }]
+})
+```
+
+This script can be minted by ANYONE, but the resulting NFT (the "coal" NFT with `coal_cid`) will be sent to the receiver.
+
+To mint this script, you will need to pass the second parameter when sending:
+
+```javascript
+let tx = await c0.token.send([script], [{ receiver: the_burner_of_wood }])
+```
+
+This transaction can be submitted by ANYONE, but will be minted ONLY IF `the_burner_of_wood` actually has burned the token `wood_tokenid`.
+
+If `the_burner_of_wood` actually has burned the `wood_tokenid`, the `coal_cid` NFT will be minted and sent to `the_burner_of_wood`, the receiver.
+
+#### Combine multiple to create another
+
+Let's say you want to let people receive ramen if they have burned both a noodle and a broth, but you don't care who mints them (for example the noodle/broth burner may not be the one minting).
+
+You simply need to write a script with `receiver` burned conditions:
+
+```javascript
+let script = await nuron.token.create({
+  cid: ramen_cid,
+  burned: [{
+    who: "receiver",
+    what: noodle_tokenid,
+  }, {
+    who: "receiver",
+    what: broth_tokenid,
+  }]
+})
+```
+
+This script can be minted by anyone as long as it's sent to an account that has burned both the `noodle_tokenid` and `broth_tokenid`
+
+For example:
+
+```javascript
+let tx = await c0.token.send([script], [{ receiver: burner }])
+```
+
+The `burner` account must have burned both the `noodle_tokenid` and `broth_tokenid` for this NFT to be minted, regardless of who mints it.
+
+
+#### Cross-collection swap
+
+Let's say there are two separate contracts (Each may have a different creator, or the same creator), both powered by Cell:
+
+1. Sad Ape Boat Club
+2. Excited Ape Mile High Club
+
+As the creator of the **Excited Ape Mile High Club** you may want to make it possible to morph **Sad Ape Boat Club** into **Excited Ape Mile High Club** NFTs regardless of who initiates the morph.
+
+You can do this by **creating a script on Excited Ape Mile High Club contract** that lets ANYONE mint the new NFT, as long as it's sent to the people who have burned a specific Sad Ape. Example code:
+
+```javascript
+let script = await nuron.token.create({
+  cid: excited_ape_cid,
+  burned: [{
+    who: "receiver",
+    where: sad_ape_boat_club_address,
+    what: sad_ape_tokenid,
+  }]
+})
+```
+
+This will create a script that can be submitted to the Excited Ape Mile High Club contract by ANYONE, which:
+
+- checks if the Sad Ape Boat Club NFT `sad_ape_tokenid` at `sad_ape_boat_club_address` was burned
+- checks if the account that burned the said NFT is the `receiver` provided.
+
+```javascript
+let tx = await c0.token.send([script], [{ receiver: receiver }])
+```
+
+In this case, anyone can call the method above to submit the transaction, and it will only mint if the `receiver` actually has burned the `sad_ape_boat_club_address` NFT token at `sad_ape_tokenid`.
+
+
+## 11. Mix and match
+
+You don't have to use one opcode at a time. You can combine all the opcodes to build very sophisticated filters for minting.
+
+### 11.1. multiple contract ownership
+
+For example, you may want to create a script that can be minted to NFT ONLY when the minter holds both Mfers and Nouns NFT:
+
+```javascript
+let script = await nuron.token.create({
+  cid: metadata_cid,
+  balance: [{
+    who: "sender",
+    where: "0x79fcdef22feed20eddacbb2587640e45491b757f"    // mfers NFT contract
+    what: 1
+  }, {
+    who: "sender",
+    where: "0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03"    // nouns NFT contract
+    id: 1
+  }]
+})
+```
+
+This script can only turn into an NFT when the minter owns both NFTs.
+
+### 11.2. minting franchise
+
+You can create a hierarchical mint franchise organization, like "McDonald's for NFT minting".
+
+Imagine you want to allow only a select group of people who own your "franchise membership" NFT to distribute an NFT. You can create the following script:
+
+```javascript
+let script = await nuron.token.create({
+  cid: metadata_cid,
+  balance: [{
+    who: "sender",
+    where: franchise_membership_nft,                       // the minter must be part of the franchise membership
+    what: 1
+  }, {
+    who: "receiver",
+    where: "0x79fcdef22feed20eddacbb2587640e45491b757f"    // mfers NFT contract
+    what: 1
+  }, {
+    who: "receiver",
+    where: "0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03"    // nouns NFT contract
+    id: 1
+  }]
+})
+```
+
+This NFT has the following properties:
+
+1. The NFT can only be minted by the holders of the `franchise_membership_nft` NFT
+2. The franchise members can only mint the NFTs to those who hold both the mfers NFT and the nouns NFT.
+
+To mint the above script, one of the `franchise_membership_nft` holders may submit the script to the blockchain with a receiver who holds both the mfers NFT and the nouns NFT:
+
+```javascript
+let tx = await c0.token.send([script], [{ receiver: mfers_nouns_owner }])
+```
+
+### 11.3. use your imagination
+
+We have just scratched the surface of what can be done with Cell script. You can combine as many opcodes as you want in order to program exactly how you want the minting to happen.
+
+Just some examples:
+
+```javascript
+// only the specified senders can mint, and only the specified receivers can receive the minted token
+let script1 = await nuron.token.create({
+  cid: cid,
+  senders: [ . . . ],
+  receivers: [ . . . ],
+  value:  . . .
+})
+
+// the first person to solve the puzzle among the selected group can mint.
+let script2 = await nuron.token.create({
+  cid: cid,
+  senders: [ . . . ],
+  puzzle: . . .
+  value:  . . .
+})
+```
+
+---
+
+## 12. Offchain NFTs
+
+### 12.1. Offchain scripts as coupons
+
+One thing to note is that these offchain scripts are already signed by the NFT's issuer (the NFT creator). This means you can already use these offchain scripts in various meaningful ways EVEN BEFORE they're minted on the blockchain.
+
+One good way to think about this is, **the offchain scripts are like coupons.**
+
+They are fully signed by the issuer so whoever physically holds the script can go to the issuer and **"request redemption"**. Let's think about a more concrete scenario.
+
+### 12.2. Bob's Taco Truck Membership
+
+Let's imagine Bob runs a Taco truck, and he wants to use NFTs as a "membership ticket" so the members can enjoy 50% discounted rate for a year. Bob can do this WITHOUT using the blockchain.
+
+Let's say Bob wants to give a membership token to Alice, here's what he would do:
+
+```javascript
+let token = await nuron.token.create({
+  cid: metadata_cid,
+  receiver: "0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41"    // Alice's address
+})
+```
+
+This creates a script (or "coupon") that can be "redeemed" for an actual NFT later. This also means this coupon is as good as the NFT itself. The only difference is that it's NON-transferrable since it's not yet on the blockchain.
+
+However in this case Bob doesn't really care for the transferrable rights of the Taco truck membership, so it doesn't really matter. The resulting JSON script may look like this:
+
+```javascript
+{
+  body: {
+    signature: '0xfbe4b1075961248bc3f55f9ed785386479d34fda143b7bd520d4ddb5d70d5a40425e43ccc0cf8fe56a822e40c9a4508b1ab4d0cb0337d3617d6fadb5911b66951b',
+    cid: 'bafkreiecoogmguhvhvslpait4kknvmic5344dgvrs3l5migok5aj33pcei',
+    id: '59004829238478164602790103135035438545739640263958690554266001662053689713186',
+    encoding: 0,
+    sender: '0x0000000000000000000000000000000000000000',
+    receiver: '0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41',
+    value: '0',
+    start: '0',
+    end: '18446744073709551615',
+    royaltyReceiver: '0x0000000000000000000000000000000000000000',
+    royaltyAmount: '0',
+    burned: [],
+    owns: [],
+    balance: [],
+    senders: [],
+    merkleHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    puzzleHash: '0x0000000000000000000000000000000000000000000000000000000000000000'
+  },
+  domain: {
+    name: '_test_',
+    chainId: 4,
+    verifyingContract: '0x93f4f1e0dca38dd0d35305d57c601f829ee53b51',
+    version: '1'
+  }
+}
+```
+
+A couple of things to note:
+
+1. The "receiver" is "0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41" (Alice's address)
+2. There is a "signature" field, which means this script was signed by Bob, basically saying that "I approve the fact that this token belongs to Alice"
+
+Next time when Alice visits the taco truck, Alice can show Bob her script OFFLINE (no blockchain or internet connection required), and Bob can simply verify the signature against his address, and be sure that this is legit. Then Bob can serve Alice 50% discounted rate.
+
+
+### 12.3. How to expire a membership
+
+We've seen how to use offchain signed scripts as a coupon. But above example is kind of limited because no business will want to provide "lifetime membership" to everyone.
+
+Most membership programs have a renewal and expiry system: You join a membership and eitehr renew after a year or let it expire, etc.
+
+Supporting this feature is simple, again without any blockchain or internet connection:
+
+```javascript
+let now = Math.floor(Date.now() / 1000)
+let token = await nuron.token.create({
+  cid: metadata_cid,
+  receiver: "0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41",    // Alice's address
+  start: now,                                                // membership effective starting now
+  end: now + 365 * 24 * 60 * 60                              // membership expires 1 year from now
+})
+```
+
+Technically what this script means is: "If you submit this script to the blockchain between now and 1 year later, it will be minted to Alice ("0x502b2FE7Cc3488fcfF2E16158615AF87b4Ab5C41")".
+
+But we can also conclude that, since this can ONLY EVER be owned by Alice between the 1 year period, Alice effectively is the owner, even without touching the blockchain ever.
+
+Alice can store the generated JSON script somewhere and show it to Bob when she visits Bob's taco. Bob will:
+
+1. First check the signature to make sure that it was his address indeed that signed Alice's script
+2. Make sure that the `end` time hasn't been reached yet and `start` time has passed.
 
 ---
 
