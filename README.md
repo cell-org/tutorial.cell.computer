@@ -214,7 +214,7 @@ Nuron is a piece of software that lets you automatically and programmatically cr
 
 Download on Mac:
 
-<a class='btn' href="https://github.com/cell-org/nutron/releases/download/v0.0.3/nuron-0.0.3.dmg"><i class="fa-brands fa-apple"></i> Mac Installer</a>
+<a class='btn' href="https://github.com/cell-org/nuron-desktop/releases/download/v0.0.4/nuron-0.0.4.dmg"><i class="fa-brands fa-apple"></i> Mac Installer</a>
 
 ---
 
@@ -222,7 +222,7 @@ Download on Mac:
 
 Download on Windows:
 
-<a class='btn' href="https://github.com/cell-org/nutron/releases/download/v0.0.3/nuron.Setup.0.0.3.exe"><i class="fa-brands fa-windows"></i> Windows Installer</a>
+<a class='btn' href="https://github.com/cell-org/nuron-desktop/releases/download/v0.0.4/nuron.Setup.0.0.4.exe"><i class="fa-brands fa-windows"></i> Windows Installer</a>
 
 ---
 
@@ -941,6 +941,9 @@ All that's left now is to to publish the tokens to the web so people can mint th
 
 ---
 
+
+
+
 ## 2. Turn your local folder into NFTs
 
 First install all dependencies:
@@ -1069,7 +1072,186 @@ All that's left now is to to publish the tokens to the web so people can mint th
 
 ---
 
-## 3. On-demand NFTs
+## 3. Turn multimedia files into NFTs
+
+Most NFT marketplaces support a metadata attribute called `animation_url`. 
+
+> You can learn more about the `animation_url` attribute here: https://docs.opensea.io/docs/metadata-standards#metadata-structure
+
+If you are trying to tokenize non-image files, you will need to:
+
+1. set the `animation_url` with your multimedia file CID
+2. generate a thumbnail
+3. set the `image` attribute with the thumbnail CID
+4. Pin the **metadata file**, **multimedia file**, and the **thumbnail file** to IPFS.
+
+Here's an example that does this.
+
+### 3.1. Setup
+
+We are going to use a library called [pngenerator](https://github.com/parweb/pngenerator) here (but you can generate thumbnails using any library you want).
+
+Note that you may have to install some binaries before using this library.
+
+- **unoconv**
+  - **linux:** `apt-get install unoconv`
+  - **mac:**: `brew install unoconv`
+  - **windows:** https://docs.moodle.org/400/en/Universal_Office_Converter_(unoconv)#Installing_unoconv_on_Windows
+- **ffmpeg:**
+  - **linux:** `apt-get install ffmpeg`
+  - **mac:** `brew install ffmpeg`
+  - **windows:** https://ffmpeg.org/download.html#build-windows
+- **imagemagick**
+  - **linux:** `apt-get install imagemagick`
+  - **mac:** `brew install imagemagick`
+  - **windows:** https://imagemagick.org/script/download.php#windows
+
+
+### 3.2. Code
+
+The multimedia tokenization is pretty much the same except for the following differences:
+
+1. **thumbnail():** A method to convert multimedia files into image thumbnails, write them to nuron file system, and return their IPFS CIDs
+2. **animation_url:** Set the CID of the multimedia file as the `animation_url` attribute for the metadata
+3. **image:** The `image` attribute is now set as the thumbnail image's IPFS CID, returned from the `thumbnail()` method.
+
+Also, don't forget to pin all of the following:
+
+1. The multimedia file
+2. The thumbnail image file
+3. The metadata file
+
+```javascript
+const DOMAIN = <PASTE YOUR DOMAIN JSON OBJECT HERE>
+const pngenerator = require('pngenerator');
+const fs = require('fs')
+const Nuron = require('nuronjs')
+const nuron = new Nuron({
+  key: "m'/44'/60'/0'/0/0",
+  workspace: "multimedia",
+  domain: DOMAIN
+});
+// Thumbnail generator
+// using the "pngenerator" package
+// https://github.com/parweb/pngenerator
+const thumbnail = async (file) => {
+  const { fileTypeFromFile } = await import('file-type');
+  let filepath = `files/${file}`
+  let type = await fileTypeFromFile(filepath)
+  let thumb_cid;
+  // image type => just use the image
+  if (type.mime.startsWith("image")) {
+    thumb_cid = cid
+  }
+  // not image type => generate thumbnail from the file
+  else {
+    let destinationFilepath = `tmp-${file}.png`
+    await new Promise((resolve, reject) => {
+      pngenerator.generate(filepath, destinationFilepath, (err) => {
+        // can't generate a preview => just use the default placeholder image
+        if (err) {
+          fs.promises.copyFile("placeholder.png", destinationFilepath).then(() => {
+            resolve()
+          })
+        }
+        // successfully generated thumbnail => return
+        else {
+          resolve()
+        }
+      })
+    })
+    // add the generated file to nuron file system
+    let tmpBuffer = await fs.promises.readFile(destinationFilepath)
+    thumb_cid = await nuron.fs.write(tmpBuffer)
+    // remove the generated file from local file system since
+    // we only need the file to be added to nuron
+    await fs.promises.rm(destinationFilepath)
+  }
+  return {
+    type: type,
+    thumb_cid: thumb_cid
+  };
+}
+
+
+(async () => {
+  ////////////////////////////////////////////////////
+  //
+  // 0. CLEAN UP WORKSPACE (OPTIONAL)
+  // if you want to start from clean slate
+  // every time you run this code, remove everything
+  // from the file system and the DB first.
+  //
+  ////////////////////////////////////////////////////
+
+  // 0.1. Remove all files from the workspace "fs" folder
+  await nuron.fs.rm("*")
+
+  // 0.2. Remove all items from the token table
+  await nuron.db.rm("token", {})
+
+  let files = await fs.promises.readdir("files")
+  for(let file of files) {
+    let filepath = `files/${file}`
+    let buf = await fs.promises.readFile(filepath)
+    let cid = await nuron.fs.write(buf)
+
+    // generate thumbnail and get its cid
+    let { type, thumb_cid } = await thumbnail(file)
+
+    let metadata_cid = await nuron.fs.write({
+      name: file,
+      description: file,
+      image: `ipfs://${thumb_cid}`,     // use the thumbnail image cid as the image
+      animation_url: `ipfs://${cid}`,   // the original filea url should be the animation_url
+      mime: { [cid]: type.mime }        // needed to efficiently render the files on the minting page
+    })
+
+    // create a token script
+    let token = await nuron.token.create({
+      cid: metadata_cid,
+    })
+    console.log(`[${file}] created token`, token)
+
+    // write the token to nuron db
+    await nuron.db.write("token", token)
+
+    // write the token to the nuron file system
+    await nuron.fs.write(token)
+
+    // pin the original file to IPFS
+    console.log("pinning file...", cid)
+    await nuron.fs.pin(cid)
+
+    // pin the thumbnail file to IPFS
+    console.log("pinning thumbnail file...", thumb_cid)
+    await nuron.fs.pin(thumb_cid)
+
+    // pin the metadata file to IPFS
+    console.log("pinning metadata...", metadata_cid)
+    await nuron.fs.pin(metadata_cid)
+  }
+
+  ////////////////////////////////////////////////////////////////
+  //
+  // 4. BUILD A BASIC COLLECTION WEBSITE (index.html + token.html)
+  //
+  ////////////////////////////////////////////////////////////////
+  await nuron.web.build()
+  console.log("finished")
+})();
+```
+
+### 3.3. Check out the minting site
+
+Now open your Nuron workspace and go into the `web` folder and open the `index.html`. You will see something like this:
+
+![multimedia.gif](multimedia.gif)
+
+---
+
+
+## 4. On-demand NFTs
 
 This documentation mostly discussed how to create all tokens BEFOREHAND, and let people mint from the created tokens published to the web.
 
@@ -1232,7 +1414,7 @@ The entire minting app will look something like this:
 ---
 
 
-## 4. On-demand NFTs in Production
+## 5. On-demand NFTs in Production
 
 When you implement an on-demand NFT server, your server is basically acting as a token printer:
 
@@ -1253,7 +1435,7 @@ There are two parts to this:
 
 ---
 
-### 4.1. Nuron
+### 5.1. Nuron
 
 When using Nuron in a server setting, you should be using the Docker version of Nuron (instead of desktop Nuron).
 
@@ -1280,7 +1462,7 @@ The `restart: always` means the container will always restart when it crashes. T
 
 ---
 
-### 4.2. Your ondemand NFT app
+### 5.2. Your ondemand NFT app
 
 While Nuron itself can automatically restart, we still have one more issue.
 
@@ -1357,11 +1539,11 @@ To take this approach, you don't need to change the existing code. The code will
 
 ---
 
-## 5. Value lock
+## 6. Value lock
 
 You can restrict the NFT minting based on how much ETH is attached to the minting transaction.
 
-### 5.1. NFTs with dynamic minting price
+### 6.1. NFTs with dynamic minting price
 
 Let's say you want to create a token whose minting price goes down over time. To facilitate this, you can create multiple Scripts for the same token:
 
@@ -1385,7 +1567,7 @@ let tomorrow = await nuron.token.create({
 
 ---
 
-### 5.2. Market Segmentation
+### 6.2. Market Segmentation
 
 You can create multiple minting conditions for the same tokenid.
 
@@ -1422,11 +1604,11 @@ You can publish all of these scripts simultaneously, or selectively or privately
 
 ---
 
-## 6. Hash puzzle lock
+## 7. Hash puzzle lock
 
 You can create tokens that can only be minted when the minter knows the code you locked the script with. 
 
-### 6.1. Create a puzzle protected token
+### 7.1. Create a puzzle protected token
 
 For example, let's create a script that can only be minted into an NFT when you supply the string "magic word".
 
@@ -1472,7 +1654,7 @@ CREATED SCRIPT = {
 
 Note that there is no `"magic word"` secret code included anywhere (It would beat the whole purpose if the raw code were directly included in the script). Instead, the string has been hashed and stored as `puzzleHash: "0xf6eadd29a1811cb6d151eab8645fae31b713575726deacfb0c8ebe6677ecb33e"`. The minter will have to supply the solution `"magic word"` when submitting the script to the blockchain, which we will take a look below.
 
-### 6.2. Solve the puzzle to mint
+### 7.2. Solve the puzzle to mint
 
 Now let's put on our "minter role" hat and try to mint this token script by providing the `"magic word"` and submitting to the blockchain:
 
@@ -1494,11 +1676,11 @@ What this does is:
 
 ---
 
-## 7. Address lock
+## 8. Address lock
 
 You can restrict minting based on minter or receiver addresses.
 
-### 7.1. Minter address lock
+### 8.1. Minter address lock
 
 Cell lets you program **who can mint a token** directly into a script. Each token can be individually programmed differently.
 
@@ -1661,7 +1843,7 @@ let tx = await c0.token.send([script], [{ receiver: carol_address }])
 
 ---
 
-### 7.2. Receiver address lock
+### 8.2. Receiver address lock
 
 There are two ways to gift NFTs with Cell:
 
@@ -1871,9 +2053,9 @@ let tx = await c0.token.send([script], [{ receiver: receiver_address }])
 
 ---
 
-## 8. Balance lock
+## 9. Balance lock
 
-### 8.1. Minter balance lock
+### 9.1. Minter balance lock
 
 You can authorize minting based on how much balance a minter holds in an **ERC20 or an ERC721 contract**.
 
@@ -2082,7 +2264,7 @@ So the script is essentially saying:
 
 ---
 
-### 8.2. Receiver balance lock
+### 9.2. Receiver balance lock
 
 You can authorize minting based on how much balance a receiver holds in an **ERC20 or an ERC721 contract**.
 
@@ -2291,9 +2473,9 @@ So the script is essentially saying:
 
 ---
 
-## 9. Ownership lock
+## 10. Ownership lock
 
-### 9.1. Minter NFT ownership lock
+### 10.1. Minter NFT ownership lock
 
 We can go further than just authorizing based on balance only.
 
@@ -2358,7 +2540,7 @@ This will create a script that can be minted ONLY IF the sender (minter) owns al
 
 ---
 
-### 9.2. Receiver NFT ownership lock
+### 10.2. Receiver NFT ownership lock
 
 Just like the **Sender NFT ownership lock**, you can restrict minting based on who will receive the minted NFT.
 
@@ -2433,7 +2615,7 @@ The token can be minted by anyone, but the minted token will be automatically se
 
 ---
 
-## 10. Burnership lock
+## 11. Burnership lock
 
 Cell is an immutable NFT system that implements immutable tokenIds.
 
@@ -2452,7 +2634,7 @@ This paradigm of creating mutability from immutability has many benefits, includ
 
 
 
-### 10.1. Minter NFT burnership lock
+### 11.1. Minter NFT burnership lock
 
 Let's look at how we can use the **minter's burnership (the proof of burn)** to trustlessly mutate tokens.
 
@@ -2551,7 +2733,7 @@ This will create a script that can be submitted to the Excited Ape Mile High Clu
 
 ---
 
-### 10.2. Receiver NFT burnership lock
+### 11.2. Receiver NFT burnership lock
 
 Let's look at how we can use the **receiver's burnership (the proof of burn)** to trustlessly mutate tokens.
 
@@ -2648,11 +2830,11 @@ let tx = await c0.token.send([script], [{ receiver: receiver }])
 In this case, anyone can call the method above to submit the transaction, and it will only mint if the `receiver` actually has burned the `sad_ape_boat_club_address` NFT token at `sad_ape_tokenid`.
 
 
-## 11. Mix and match
+## 12. Mix and match
 
 You don't have to use one opcode at a time. You can combine all the opcodes to build very sophisticated filters for minting.
 
-### 11.1. multiple contract ownership
+### 12.1. multiple contract ownership
 
 For example, you may want to create a script that can be minted to NFT ONLY when the minter holds both Mfers and Nouns NFT:
 
@@ -2673,7 +2855,7 @@ let script = await nuron.token.create({
 
 This script can only turn into an NFT when the minter owns both NFTs.
 
-### 11.2. minting franchise
+### 12.2. minting franchise
 
 You can create a hierarchical mint franchise organization, like "McDonald's for NFT minting".
 
@@ -2709,7 +2891,7 @@ To mint the above script, one of the `franchise_membership_nft` holders may subm
 let tx = await c0.token.send([script], [{ receiver: mfers_nouns_owner }])
 ```
 
-### 11.3. use your imagination
+### 12.3. use your imagination
 
 We have just scratched the surface of what can be done with Cell script. You can combine as many opcodes as you want in order to program exactly how you want the minting to happen.
 
@@ -2735,9 +2917,9 @@ let script2 = await nuron.token.create({
 
 ---
 
-## 12. Offchain NFTs
+## 13. Offchain NFTs
 
-### 12.1. Offchain scripts as coupons
+### 13.1. Offchain scripts as coupons
 
 One thing to note is that these offchain scripts are already signed by the NFT's issuer (the NFT creator). This means you can already use these offchain scripts in various meaningful ways EVEN BEFORE they're minted on the blockchain.
 
@@ -2745,7 +2927,7 @@ One good way to think about this is, **the offchain scripts are like coupons.**
 
 They are fully signed by the issuer so whoever physically holds the script can go to the issuer and **"request redemption"**. Let's think about a more concrete scenario.
 
-### 12.2. Bob's Taco Truck Membership
+### 13.2. Bob's Taco Truck Membership
 
 Let's imagine Bob runs a Taco truck, and he wants to use NFTs as a "membership ticket" so the members can enjoy 50% discounted rate for a year. Bob can do this WITHOUT using the blockchain.
 
@@ -2800,7 +2982,7 @@ A couple of things to note:
 Next time when Alice visits the taco truck, Alice can show Bob her script OFFLINE (no blockchain or internet connection required), and Bob can simply verify the signature against his address, and be sure that this is legit. Then Bob can serve Alice 50% discounted rate.
 
 
-### 12.3. How to expire a membership
+### 13.3. How to expire a membership
 
 We've seen how to use offchain signed scripts as a coupon. But above example is kind of limited because no business will want to provide "lifetime membership" to everyone.
 
