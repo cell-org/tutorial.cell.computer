@@ -1634,8 +1634,6 @@ CREATED SCRIPT = {
     value: '0',
     start: '0',
     end: '18446744073709551615',
-    royaltyReceiver: '0x0000000000000000000000000000000000000000',
-    royaltyAmount: '0',
     relations: [],
     senders: [],
     sendersHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -1721,8 +1719,6 @@ script {
     value: '0',
     start: '0',
     end: '18446744073709551615',
-    royaltyReceiver: '0x0000000000000000000000000000000000000000',
-    royaltyAmount: '0',
     relations: [],
     senders: [],
     sendersHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -1796,8 +1792,6 @@ Script = {
     value: '0',
     start: '0',
     end: '18446744073709551615',
-    royaltyReceiver: '0x0000000000000000000000000000000000000000',
-    royaltyAmount: '0',
     relations: [],
     sendersHash: '0xdad4caef045ea01928e4235e51aeb73ab2fdde1877c9acba801a7967d7c1b1cf',
     senders: [
@@ -1911,8 +1905,6 @@ Bob's wishlist: {
     value: '0',
     start: '0',
     end: '18446744073709551615',
-    royaltyReceiver: '0x0000000000000000000000000000000000000000',
-    royaltyAmount: '0',
     relations: [],
     senders: [],
     sendersHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -1998,8 +1990,6 @@ Script = {
     value: '0',
     start: '0',
     end: '18446744073709551615',
-    royaltyReceiver: '0x0000000000000000000000000000000000000000',
-    royaltyAmount: '0',
     relations: [],
     senders: [],
     sendersHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -2090,8 +2080,6 @@ Script = {
     "value": "0",
     "start": "0",
     "end": "18446744073709551615",
-    "royaltyReceiver": "0x0000000000000000000000000000000000000000",
-    "royaltyAmount": "0",
     "relations": [
       {
         "code": 4,
@@ -2154,8 +2142,6 @@ Script = {
     "value": "0",
     "start": "0",
     "end": "18446744073709551615",
-    "royaltyReceiver": "0x0000000000000000000000000000000000000000",
-    "royaltyAmount": "0",
     "relations": [
       {
         "code": 4,
@@ -2228,8 +2214,6 @@ Script = {
     "value": "0",
     "start": "0",
     "end": "18446744073709551615",
-    "royaltyReceiver": "0x0000000000000000000000000000000000000000",
-    "royaltyAmount": "0",
     "relations": [
       {
         "code": 4,
@@ -2299,8 +2283,6 @@ Script = {
     "value": "0",
     "start": "0",
     "end": "18446744073709551615",
-    "royaltyReceiver": "0x0000000000000000000000000000000000000000",
-    "royaltyAmount": "0",
     "relations": [
       {
         "code": 5,
@@ -2363,8 +2345,6 @@ Script = {
     "value": "0",
     "start": "0",
     "end": "18446744073709551615",
-    "royaltyReceiver": "0x0000000000000000000000000000000000000000",
-    "royaltyAmount": "0",
     "relations": [
       {
         "code": 5,
@@ -2436,8 +2416,6 @@ Script = {
     "value": "0",
     "start": "0",
     "end": "18446744073709551615",
-    "royaltyReceiver": "0x0000000000000000000000000000000000000000",
-    "royaltyAmount": "0",
     "relations": [
       {
         "code": 5,
@@ -2829,12 +2807,64 @@ let tx = await c0.token.send([script], [{ receiver: receiver }])
 
 In this case, anyone can call the method above to submit the transaction, and it will only mint if the `receiver` actually has burned the `sad_ape_boat_club_address` NFT token at `sad_ape_tokenid`.
 
+## 12. Split mint revenue
 
-## 12. Mix and match
+When people mint your tokens and send ETH, they are sent to the contract by default, and later you (the contract owner) can withdraw them with "withdraw()".
+
+But you can also automatically split that money to one or more addresses.
+
+### 12.1. Split revenue to a receiver
+
+For example let's say you wanted to **donate 70% of your revenue to charity**.
+
+You can:
+
+```javascript
+let script = await nuron.token.create({
+  cid: excited_ape_cid,
+  value: 10 ** 18,
+  payments: [{
+    where: charity_address,
+    what: 700000        // 70%
+  }]
+})
+```
+
+What's going on here?
+
+1. `value: 10 ** 18`: This means this token requires 1ETH in order to be minted
+2. `payments[0].where: charity_address`: When 1ETH is sent, a portion of it will be sent to the `charity_address`, and the rest will be stored in the contract.
+3. `payments[0].what: 700000`: The `what` attribute describes how much (percentage) of the total ETH sent should be sent to the `charity_address`. The percentage is calculated by dividing the `what` attribute with one million (1000000).
+
+### 12.2. Split revenue among multiple parties
+
+Let's say you have built a derivative NFT that derives from 3 NFT projects, and you would like to share your revenue with their treasury. You can do this:
+
+```javascript
+let script = await nuron.token.create({
+  cid: excited_ape_cid,
+  value: 10 ** 18,
+  payments: [{
+    where: parent_collection_address1,
+    what: 100000        // 10%
+  }, {
+    where: parent_collection_address2,
+    what: 100000        // 10%
+  }, {
+    where: parent_collection_address2,
+    what: 100000        // 10%
+  }]
+})
+```
+
+When this token is minted, the contract will receive 0.7ETH (70% of the 1ETH sent), and the three parent collection treasury addresses will receive 0.1ETH each.
+
+
+## 13. Mix and match
 
 You don't have to use one opcode at a time. You can combine all the opcodes to build very sophisticated filters for minting.
 
-### 12.1. multiple contract ownership
+### 13.1. multiple contract ownership
 
 For example, you may want to create a script that can be minted to NFT ONLY when the minter holds both Mfers and Nouns NFT:
 
@@ -2855,7 +2885,7 @@ let script = await nuron.token.create({
 
 This script can only turn into an NFT when the minter owns both NFTs.
 
-### 12.2. minting franchise
+### 13.2. minting franchise
 
 You can create a hierarchical mint franchise organization, like "McDonald's for NFT minting".
 
@@ -2891,7 +2921,7 @@ To mint the above script, one of the `franchise_membership_nft` holders may subm
 let tx = await c0.token.send([script], [{ receiver: mfers_nouns_owner }])
 ```
 
-### 12.3. use your imagination
+### 13.3. use your imagination
 
 We have just scratched the surface of what can be done with Cell script. You can combine as many opcodes as you want in order to program exactly how you want the minting to happen.
 
@@ -2917,9 +2947,9 @@ let script2 = await nuron.token.create({
 
 ---
 
-## 13. Offchain NFTs
+## 14. Offchain NFTs
 
-### 13.1. Offchain scripts as coupons
+### 14.1. Offchain scripts as coupons
 
 One thing to note is that these offchain scripts are already signed by the NFT's issuer (the NFT creator). This means you can already use these offchain scripts in various meaningful ways EVEN BEFORE they're minted on the blockchain.
 
@@ -2927,7 +2957,7 @@ One good way to think about this is, **the offchain scripts are like coupons.**
 
 They are fully signed by the issuer so whoever physically holds the script can go to the issuer and **"request redemption"**. Let's think about a more concrete scenario.
 
-### 13.2. Bob's Taco Truck Membership
+### 14.2. Bob's Taco Truck Membership
 
 Let's imagine Bob runs a Taco truck, and he wants to use NFTs as a "membership ticket" so the members can enjoy 50% discounted rate for a year. Bob can do this WITHOUT using the blockchain.
 
@@ -2956,8 +2986,6 @@ However in this case Bob doesn't really care for the transferrable rights of the
     "value": "0",
     "start": "0",
     "end": "18446744073709551615",
-    "royaltyReceiver": "0x0000000000000000000000000000000000000000",
-    "royaltyAmount": "0",
     "relations": [],
     "senders": [],
     "sendersHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -2982,7 +3010,7 @@ A couple of things to note:
 Next time when Alice visits the taco truck, Alice can show Bob her script OFFLINE (no blockchain or internet connection required), and Bob can simply verify the signature against his address, and be sure that this is legit. Then Bob can serve Alice 50% discounted rate.
 
 
-### 13.3. How to expire a membership
+### 14.3. How to expire a membership
 
 We've seen how to use offchain signed scripts as a coupon. But above example is kind of limited because no business will want to provide "lifetime membership" to everyone.
 
