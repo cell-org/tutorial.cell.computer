@@ -768,7 +768,7 @@ The `npx` commands work identically on all platforms including Mac, Windows, and
 
 Once you publish the tokens to a website, you're pretty much done. Anyone can now come and mint the tokens they have the permission to.
 
-> With Cell, each token can be individually programmed to have different minting conditions and traits from one another, such as royalty, expiration time, start time, price, hash puzzle, membership, etc.
+> With Cell, each token can be individually programmed to have different minting conditions and traits from one another, such as royalty, expiration time, start time, value, hash puzzle, membership, etc.
 
 ---
 
@@ -885,10 +885,10 @@ const nuron = new Nuron({
     //
     ////////////////////////////////////////////////////
     
-    // 2.1. Create a token (PRICE 0)
+    // 2.1. Create a token (FREE mint)
     const token = await nuron.token.create({
       cid: metacid,
-      price: 0
+      value: 0    // FREE MINT (0 wei required)
     })
 
     // 2.2. Write the token to the DB
@@ -1019,7 +1019,7 @@ const tokenize = async (folder) => {
     // 3.1. Create a token
     const token = await nuron.token.create({
       cid: metacid,
-      price: 0
+      value: 0
     })
 
     // 3.2. Write the token to the nuron file system
@@ -1545,7 +1545,7 @@ You can restrict the NFT minting based on how much ETH is attached to the mintin
 
 ### 6.1. NFTs with dynamic minting price
 
-Let's say you want to create a token whose minting price goes down over time. To facilitate this, you can create multiple Scripts for the same token:
+Let's say you want to create a token whose minting price goes down over time. To facilitate this, you can create multiple Scripts for the same token, each with a different `value` attribute:
 
 ```javascript
 const today = Math.floor(Date.now() / 1000)
@@ -1562,8 +1562,8 @@ let tomorrow = await nuron.token.create({
 })
 ```
 
-- The `today` script can be submitted to the blockchain starting right now, until 24 hours later (24 * 60 * 60 seconds), at the price of 10**18 wei (1 ETH)
-- The `tomorrow` script can be submitted to the blockchain starting 24 hours later, at the price of 10**17 wei (0.1ETH)
+- The `today` script can be submitted to the blockchain starting right now, until 24 hours later (24 * 60 * 60 seconds), at the price (`value`) of 10**18 wei (1 ETH)
+- The `tomorrow` script can be submitted to the blockchain starting 24 hours later, at the price (`value`) of 10**17 wei (0.1ETH)
 
 ---
 
