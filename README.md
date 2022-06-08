@@ -105,7 +105,7 @@ Here are the next steps:
 1. **Setup nuron:** Install and setup Nuron, an app that lets you programmatically create and manage Cell NFTs.
 2. **Create tokens:** Learn to use nuron.js to make requests to Nuron to create tokens.
 3. **Manage tokens:** learn how the nuron file system stores and lets you browse and manage tokens.
-4. **Mint tokens:** Learn how to publish the tokens and the built-in minting website, and mint from it./li>
+4. **Mint tokens:** Learn how to publish the tokens and the built-in minting website, and mint from it.
 
 
 ---
@@ -278,6 +278,17 @@ You are all set to go if you see a Nuron container running:
 
 ![dockerps.png](dockerps.png)
 
+##### TROUBLESHOOT
+
+If you get errors running nuron, try upgrading your node.js to the latest version: 
+
+```
+sudo npm cache clean -f
+sudo npm install -g n
+sudo n stable
+```
+
+Or check out other ways to update: https://www.hostingadvice.com/how-to/update-node-js-latest-version/
 
 ---
 
