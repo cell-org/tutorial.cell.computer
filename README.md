@@ -146,6 +146,12 @@ Go to the following faucets to get Rinkeby coins for free:
 
 ## 1. Deploy Contract
 
+Deploying a Cell contract is super easy, it's literally a one click process:
+
+![deploy.gif](deploy.gif)
+
+Let's walk through each step:
+
 ### 1.1. Login to testnet account
 
 Change your wallet network to Rinkeby and go to https://c0.cell.computer
