@@ -354,7 +354,7 @@ Now you're all ready to go!
 On Linux, instead of using the web UI you can use the **Nuron CLI** to configure Nuron. Run the following command to connect to and configure Nuron:
 
 ```
-npx nuron config
+npx nuron-cli config
 ```
 
 Make sure to configure both of the following:
@@ -1507,7 +1507,7 @@ const nuron = new Nuron({
 //
 // CONNECT TO NURON USING THE
 // WALLET USERNAME AND THE ENCRYPTION PASSWORD
-// SET THROUGH "npx nuron config"!
+// SET THROUGH "npx nuron-cli config"!
 //
 ////////////////////////////////////////////////
 nuron.wallet.connect(WALLET_PASSWORD, WALLET_USERNAME)
