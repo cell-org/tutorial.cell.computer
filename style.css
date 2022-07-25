@@ -13,7 +13,7 @@ body {
 }
 .sidebar {
   color: rgba(0,0,0,0.8);
-  width: 400px !important;
+  max-width: 400px !important;
 }
 .sidebar li {
   margin: 0;
